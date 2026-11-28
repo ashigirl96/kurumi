@@ -4,12 +4,14 @@
   "type": "module",
   "exports": {
     "./schema": "./src/schema.ts",
+    "./store": "./src/store.ts",
     "./migrations": "./src/migrations.ts"
   },
   "scripts": {
     "generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@effect/sql-sqlite-bun": "catalog:",
     "drizzle-orm": "catalog:",
     "effect": "catalog:"
   },

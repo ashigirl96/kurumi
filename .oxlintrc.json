@@ -2,7 +2,11 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "unicorn", "oxc", "import"],
   "options": { "typeAware": true },
-  "ignorePatterns": ["docs/research/**", "packages/*/migrations/**"],
+  "ignorePatterns": [
+    "docs/research/**",
+    "packages/*/migrations/**",
+    "apps/*/src/fixtures/*/migrations-*/**"
+  ],
   "categories": {
     "correctness": "error",
     "suspicious": "error"

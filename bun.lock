@@ -14,10 +14,20 @@
     },
     "apps/host": {
       "name": "@kurumi/host",
+      "dependencies": {
+        "@effect/sql-sqlite-bun": "catalog:",
+        "@kurumi/agent-runtime": "workspace:*",
+        "drizzle-orm": "catalog:",
+        "effect": "catalog:",
+      },
+      "devDependencies": {
+        "drizzle-kit": "catalog:",
+      },
     },
     "packages/agent-runtime": {
       "name": "@kurumi/agent-runtime",
       "dependencies": {
+        "@effect/sql-sqlite-bun": "catalog:",
         "drizzle-orm": "catalog:",
         "effect": "catalog:",
       },
@@ -33,6 +43,8 @@
     "effect": "4.1.7",
   },
   "packages": {
+    "@effect/sql-sqlite-bun": ["@effect/sql-sqlite-bun@4.1.7", "", { "peerDependencies": { "effect": "^4.1.7" } }, "sha512-bnJAUku+uZy/CWdIwoI9ua89dSPl1sFh0HkZ8qGa6rcEtrSwM1Vw1gi7qJ7DhNsHpiuaqYHo8/IA9nu1qnJIgg=="],
+
     "@kurumi/agent-runtime": ["@kurumi/agent-runtime@workspace:packages/agent-runtime"],
 
     "@kurumi/host": ["@kurumi/host@workspace:apps/host"],

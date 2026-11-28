@@ -17,7 +17,7 @@
   "scripts": {
     "generate": "bun run --filter './packages/*' generate",
     "check": "oxlint --no-error-on-unmatched-pattern --report-unused-disable-directives-severity=error && oxfmt --check && tsc --noEmit && bun run test",
-    "test": "bun test --pass-with-no-tests ./apps ./packages"
+    "test": "bun test ./apps ./packages"
   },
   "devDependencies": {
     "@types/bun": "^1.4.3",
