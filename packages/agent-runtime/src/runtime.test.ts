@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -7,12 +7,13 @@ import { Effect, Exit, Layer } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import {
+  type ApprovalRequest,
   type InboundInput,
   type OutboundToDeliver,
   Runtime,
   type RuntimeConfig,
 } from './runtime.ts'
-import { inboundMessages, outboundMessages, sessions, turns } from './schema.ts'
+import { inboundMessages, outboundMessages, sessions, toolCalls, turns } from './schema.ts'
 import { AgentRuntimeDb } from './store.ts'
 import { testDbLayer } from './testing/db.ts'
 import type { Script } from './testing/fake-cli.ts'
@@ -113,6 +114,11 @@ const allOutbound = Effect.gen(function* () {
   return yield* db.select().from(outboundMessages)
 })
 
+const allToolCalls = Effect.gen(function* () {
+  const db = yield* AgentRuntimeDb
+  return yield* db.select().from(toolCalls)
+})
+
 const turnEnded = (state: 'interrupted' | 'completed') =>
   Effect.map(allTurns, (rows) => rows.length === 1 && rows[0]?.state === state)
 
@@ -121,6 +127,60 @@ const turnsEnded = (count: number) =>
     allTurns,
     (rows) => rows.length === count && rows.every((t) => t.state === 'completed'),
   )
+
+const write = (name: string, file: string, input: Record<string, unknown> = {}) =>
+  ({ kind: 'tool', name, input, writes: { path: file, content: 'x' } }) as const
+const holdStep = { kind: 'park', name: 'hold' } as const
+const doneStep = { kind: 'say', text: 'done' } as const
+const workspace = Effect.map(allSessions, ([session]) => session!.workspaceDir)
+const ran = (dir: string) =>
+  readdirSync(dir)
+    .filter((f) => f.endsWith('.txt'))
+    .toSorted()
+const atHold = (h: Harness) => Effect.promise(() => h.sandbox.gate(0).reached('hold'))
+const asking = () => {
+  const requests: ApprovalRequest[] = []
+  return {
+    requests,
+    onApprovalRequest: (r: ApprovalRequest) => Effect.sync(() => void requests.push(r)),
+  }
+}
+const requested = (requests: ApprovalRequest[]) =>
+  eventually(
+    'approval requested',
+    Effect.sync(() => requests.length === 1),
+  )
+
+const askScript = () => ({
+  first: { steps: [write('Write', 'ask.txt', { file_path: 'ask.txt' }), holdStep, doneStep] },
+})
+
+const send = (text: string, extra: { id?: string; dropMeta?: boolean } = {}) =>
+  ({
+    kind: 'tool',
+    name: 'mcp__kurumi__send_message',
+    input: { text },
+    ...extra,
+  }) as const
+const deliveredRows = (count: number) =>
+  eventually(
+    'delivered',
+    Effect.map(
+      allOutbound,
+      (rows) => rows.length === count && rows.every((r) => r.state === 'delivered'),
+    ),
+  )
+const toolResultErrors = Effect.map(allSessions, ([session]) =>
+  readdirSync(join(session!.configDir, 'projects'), { recursive: true })
+    .filter((f) => String(f).endsWith('.jsonl'))
+    .flatMap((f) =>
+      readFileSync(join(session!.configDir, 'projects', String(f)), 'utf8')
+        .split('\n')
+        .filter((line) => line !== '')
+        .map((line): unknown => JSON.parse(line)),
+    )
+    .filter((row) => JSON.stringify(row).includes('"is_error":true')),
+)
 
 describe('Runtime', () => {
   test('1 つの受信が 1 つのターンになり、最後の文が 1 回だけ届く', async () => {
@@ -534,6 +594,267 @@ describe('Runtime', () => {
       expect(h.delivered.map((m) => m.kind)).toEqual(['notice'])
       expect(h.sandbox.spawns).toHaveLength(1)
       expect(h.sandbox.alive()).toBe(0)
+    })
+  })
+  describe('ツールの関所', () => {
+    test('許可されたツール呼び出しは、ツールが動いた時点で tool_calls に記録されている', async () => {
+      const h = harness(() => ({
+        first: { steps: [write('Write', 'ran.txt', { file_path: 'a.txt' }), holdStep, doneStep] },
+      }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('書いて'))
+          yield* atHold(h)
+          expect(ran(yield* workspace)).toEqual(['ran.txt'])
+          const [turn] = yield* allTurns
+          const rows = yield* allToolCalls
+          expect(rows).toHaveLength(1)
+          expect(rows[0]).toMatchObject({ toolName: 'Write', turnId: turn!.id })
+          expect(rows[0]?.toolUseId).toStartWith('toolu_')
+          expect(JSON.parse(rows[0]!.inputSummary)).toEqual({ file_path: 'a.txt' })
+          h.sandbox.gate(0).release('hold')
+          yield* eventually('completed', turnsEnded(1))
+        }),
+      )
+    })
+
+    test('入力の要約は長い入力を切り詰める', async () => {
+      const h = harness(() => ({
+        first: {
+          steps: [write('Write', 'ran.txt', { text: 'あ'.repeat(5000) }), holdStep, doneStep],
+        },
+      }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('長い'))
+          yield* atHold(h)
+          const [row] = yield* allToolCalls
+          expect(row!.inputSummary.length).toBeLessThan(1000)
+          expect(row!.inputSummary).toStartWith('{"text":"あああ')
+          h.sandbox.gate(0).release('hold')
+        }),
+      )
+    })
+
+    test('tool_calls に書けないとき、ツールは動かない', async () => {
+      const h = harness(() => ({
+        first: { steps: [write('Write', 'ran.txt'), holdStep, doneStep] },
+      }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          const sql = yield* SqlClient.SqlClient
+          yield* sql`DROP TABLE tool_calls`
+          yield* runtime.receive(inbound('書けない'))
+          yield* atHold(h)
+          expect(ran(yield* workspace)).toEqual([])
+          h.sandbox.gate(0).release('hold')
+          yield* eventually('completed', turnsEnded(1))
+        }),
+      )
+    })
+
+    test('方針が deny のツールと禁止ツールは動かず、記録もされない', async () => {
+      const h = harness(
+        () => ({
+          first: {
+            steps: [
+              write('Bash', 'denied.txt'),
+              write('CronCreate', 'cron.txt'),
+              write('CronSomethingNew', 'cron-prefix.txt'),
+              write('ScheduleWakeup', 'wakeup.txt'),
+              write('Monitor', 'monitor.txt'),
+              write('Write', 'ok.txt'),
+              holdStep,
+              doneStep,
+            ],
+          },
+        }),
+        { policy: ({ toolName }) => (toolName === 'Bash' ? 'deny' : 'allow') },
+      )
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('いろいろ'))
+          yield* atHold(h)
+          expect(ran(yield* workspace)).toEqual(['ok.txt'])
+          expect((yield* allToolCalls).map((r) => r.toolName)).toEqual(['Write'])
+          h.sandbox.gate(0).release('hold')
+          yield* eventually('completed', turnsEnded(1))
+        }),
+      )
+    })
+
+    describe('ask', () => {
+      test('依頼が届き、allow でツールが動く。待つ間ターンは閉じず、返事は受信にならない', async () => {
+        const { requests, onApprovalRequest } = asking()
+        const h = harness(askScript, { policy: () => 'ask', onApprovalRequest })
+        await run(
+          h,
+          Effect.gen(function* () {
+            const runtime = yield* Runtime
+            yield* runtime.receive(inbound('承認して'))
+            yield* requested(requests)
+            const [request] = requests
+            const [session] = yield* allSessions
+            const [turn] = yield* allTurns
+            expect(request).toMatchObject({
+              channel: 'chat',
+              conversation: 'c1',
+              sessionId: session!.id,
+              turnId: turn!.id,
+              toolName: 'Write',
+            })
+            expect(JSON.parse(request!.inputSummary)).toEqual({ file_path: 'ask.txt' })
+            expect(request!.expiresAt.getTime()).toBeGreaterThan(Date.now())
+
+            yield* Effect.sleep('200 millis')
+            expect((yield* allTurns)[0]?.state).toBe('running')
+            expect(ran(session!.workspaceDir)).toEqual([])
+            expect(yield* allToolCalls).toHaveLength(0)
+            expect(yield* runtime.answerApproval('unknown', 'allow')).toBe(false)
+
+            const before = (yield* allInbound).length
+            expect(yield* runtime.answerApproval(request!.id, 'allow')).toBe(true)
+            yield* atHold(h)
+            expect(ran(session!.workspaceDir)).toEqual(['ask.txt'])
+            expect(yield* allToolCalls).toHaveLength(1)
+            expect(yield* allInbound).toHaveLength(before)
+            expect(yield* runtime.answerApproval(request!.id, 'allow')).toBe(false)
+            h.sandbox.gate(0).release('hold')
+            yield* eventually('completed', turnsEnded(1))
+            expect(yield* allInbound).toHaveLength(before)
+          }),
+        )
+      })
+
+      test('deny ならツールは動かず、記録もされない', async () => {
+        const { requests, onApprovalRequest } = asking()
+        const h = harness(askScript, { policy: () => 'ask', onApprovalRequest })
+        await run(
+          h,
+          Effect.gen(function* () {
+            const runtime = yield* Runtime
+            yield* runtime.receive(inbound('断る'))
+            yield* requested(requests)
+            expect(yield* runtime.answerApproval(requests[0]!.id, 'deny')).toBe(true)
+            yield* atHold(h)
+            expect(ran(yield* workspace)).toEqual([])
+            expect(yield* allToolCalls).toHaveLength(0)
+            h.sandbox.gate(0).release('hold')
+            yield* eventually('completed', turnsEnded(1))
+          }),
+        )
+      })
+
+      test('答えが来ないまま時間切れになると deny になり、その後の答えは false', async () => {
+        const { requests, onApprovalRequest } = asking()
+        const h = harness(askScript, {
+          policy: () => 'ask',
+          onApprovalRequest,
+          approvalTimeout: '300 millis',
+        })
+        await run(
+          h,
+          Effect.gen(function* () {
+            const runtime = yield* Runtime
+            yield* runtime.receive(inbound('放っておく'))
+            yield* requested(requests)
+            yield* atHold(h)
+            expect(ran(yield* workspace)).toEqual([])
+            expect(yield* allToolCalls).toHaveLength(0)
+            expect(yield* runtime.answerApproval(requests[0]!.id, 'allow')).toBe(false)
+            h.sandbox.gate(0).release('hold')
+            yield* eventually('completed', turnsEnded(1))
+          }),
+        )
+      })
+
+      test('/stop で待ちが終わり、ターンは interrupted になる', async () => {
+        const { requests, onApprovalRequest } = asking()
+        const h = harness(askScript, { policy: () => 'ask', onApprovalRequest })
+        await run(
+          h,
+          Effect.gen(function* () {
+            const runtime = yield* Runtime
+            yield* runtime.receive(inbound('待たせる'))
+            yield* requested(requests)
+            expect(yield* runtime.receive(inbound('/stop'))).toBe('stop')
+            yield* eventually('interrupted', turnEnded('interrupted'))
+            expect((yield* allTurns)[0]?.endReason).toBe('stopped')
+            expect(ran(yield* workspace)).toEqual([])
+            expect(yield* allToolCalls).toHaveLength(0)
+            expect(yield* runtime.answerApproval(requests[0]!.id, 'allow')).toBe(false)
+          }),
+        )
+        expect(h.sandbox.alive()).toBe(0)
+      })
+    })
+  })
+
+  describe('送るツール', () => {
+    test('progress を 1 回、最後の文は final を 1 回だけ書いて配達する', async () => {
+      const h = harness(() => ({
+        first: { steps: [send('途中経過'), { kind: 'say', text: '最後の文' }] },
+      }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('やって'))
+          yield* deliveredRows(2)
+          expect((yield* allOutbound).map((r) => r.kind)).toEqual(['progress', 'final'])
+        }),
+      )
+      expect(h.delivered.map((m) => [m.kind, m.body])).toEqual([
+        ['progress', '途中経過'],
+        ['final', '最後の文'],
+      ])
+    })
+
+    test('同じツール呼び出しの id で 2 度呼ばれても、progress は 1 つ', async () => {
+      const h = harness(() => ({
+        first: {
+          steps: [
+            send('途中経過', { id: 'toolu_dup' }),
+            send('途中経過', { id: 'toolu_dup' }),
+            { kind: 'say', text: '最後の文' },
+          ],
+        },
+      }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('二度呼ぶ'))
+          yield* deliveredRows(2)
+          yield* Effect.sleep('100 millis')
+          expect((yield* allOutbound).map((r) => r.kind)).toEqual(['progress', 'final'])
+        }),
+      )
+      expect(h.delivered.map((m) => m.kind)).toEqual(['progress', 'final'])
+    })
+
+    test('_meta に id が無ければツールのエラーになり、送信は書かれない', async () => {
+      const h = harness(() => ({
+        first: { steps: [send('届かない', { dropMeta: true }), { kind: 'say', text: '最後の文' }] },
+      }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('メタ無し'))
+          yield* deliveredRows(1)
+          expect((yield* allOutbound).map((r) => r.kind)).toEqual(['final'])
+          expect(yield* toolResultErrors).toHaveLength(1)
+        }),
+      )
     })
   })
 })

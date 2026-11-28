@@ -3,9 +3,14 @@ import { join } from 'node:path'
 
 import { Context, Deferred, type Duration, Effect, Layer, Semaphore } from 'effect'
 
+import {
+  type ApprovalDecision,
+  type ApprovalRequest,
+  type Policy,
+  type ToolDecision,
+} from './gate.ts'
 import { type Deliver, type OutboundToDeliver, makeOutbox } from './outbound.ts'
 import type { Sandbox } from './sandbox.ts'
-import type { TurnId } from './schema.ts'
 import {
   AgentRuntimeDb,
   type SessionRow,
@@ -19,7 +24,15 @@ import {
 } from './store.ts'
 import { type TurnControl, type TurnGrant, runTurn } from './turn.ts'
 
-export type { Deliver, OutboundToDeliver, TurnGrant }
+export type {
+  ApprovalDecision,
+  ApprovalRequest,
+  Deliver,
+  OutboundToDeliver,
+  Policy,
+  ToolDecision,
+  TurnGrant,
+}
 
 export type InboundInput = {
   readonly channel: string
@@ -32,23 +45,6 @@ export type InboundInput = {
 
 /** `receive` が成功で返った時点で、受信は DB にコミット済み。チャンネルはこれを待ってから ack する。 */
 export type ReceiveOutcome = 'stored' | 'duplicate' | 'stop' | 'new-session'
-
-export type ApprovalRequest = {
-  readonly id: string
-  readonly channel: string
-  readonly conversation: string
-  readonly sessionId: string
-  readonly turnId: TurnId
-  readonly toolName: string
-  readonly inputSummary: string
-  readonly expiresAt: Date
-}
-
-export type ApprovalDecision = 'allow' | 'deny'
-
-export type ToolDecision = 'allow' | 'deny' | 'ask'
-
-export type Policy = (call: { toolName: string; input: unknown }) => ToolDecision
 
 export type RuntimeConfig = {
   /** `sessions/<sessionId>/{cfg,work}` を置く */
@@ -76,6 +72,7 @@ export type RuntimeApi = {
 
 const deliveryRetryDelay = '1 second'
 const defaultTurnTimeout: Duration.Input = '30 minutes'
+const defaultApprovalTimeout: Duration.Input = '15 minutes'
 
 const makeRuntime = (config: RuntimeConfig) =>
   Effect.gen(function* () {
@@ -94,12 +91,18 @@ const makeRuntime = (config: RuntimeConfig) =>
       return created
     }
 
+    const approvals = new Map<string, Deferred.Deferred<ApprovalDecision>>()
+
     const turnDeps = {
       sandbox: config.sandbox,
       register: config.credentialGateway?.register,
       model: config.model,
       notifyOutbound: outbox.notify,
       turnTimeout: config.turnTimeout ?? defaultTurnTimeout,
+      policy: config.policy ?? (() => 'allow' as const),
+      onApprovalRequest: config.onApprovalRequest,
+      approvalTimeout: config.approvalTimeout ?? defaultApprovalTimeout,
+      approvals,
     }
 
     const activeTurns = new Map<string, TurnControl>()
@@ -187,7 +190,12 @@ const makeRuntime = (config: RuntimeConfig) =>
         return stored ? ('stored' as const) : ('duplicate' as const)
       }).pipe(Effect.provideService(AgentRuntimeDb, db))
 
-    return { receive, answerApproval: () => Effect.succeed(false) } satisfies RuntimeApi
+    const answerApproval = (id: string, decision: ApprovalDecision) => {
+      const answer = approvals.get(id)
+      return answer ? Deferred.succeed(answer, decision) : Effect.succeed(false)
+    }
+
+    return { receive, answerApproval } satisfies RuntimeApi
   })
 
 export class Runtime extends Context.Service<Runtime, RuntimeApi>()(

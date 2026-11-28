@@ -1,9 +1,11 @@
-import { type SDKUserMessage, query } from '@anthropic-ai/claude-agent-sdk'
-import { Data, Deferred, type Duration, Effect, Option, Ref, Stream } from 'effect'
+import { type HookCallback, type SDKUserMessage, query } from '@anthropic-ai/claude-agent-sdk'
+import { Data, Deferred, Duration, Effect, Option, Ref, Stream } from 'effect'
 import { z } from 'zod'
 
+import { type GateDeps, type Policy, forbiddenTools, makeGate } from './gate.ts'
 import type { Sandbox, TurnSandbox } from './sandbox.ts'
 import type { TurnId } from './schema.ts'
+import { sendMessageServer } from './send-tool.ts'
 import {
   type AgentRuntimeDb,
   type DbError,
@@ -32,6 +34,10 @@ export type TurnDeps = {
   readonly model?: string
   readonly notifyOutbound: Effect.Effect<void>
   readonly turnTimeout: Duration.Input
+  readonly policy: Policy
+  readonly onApprovalRequest: GateDeps['onApprovalRequest']
+  readonly approvalTimeout: Duration.Input
+  readonly approvals: GateDeps['approvals']
 }
 
 /** Runtime がセッションごとに持ち、動いているターンへの止める合図と押し込みの入口になる */
@@ -139,17 +145,6 @@ const SdkOutput = z.union([
   }),
 ])
 
-// SDK の disallowedTools にも同じ一覧を渡す
-export const forbiddenTools = [
-  'CronCreate',
-  'CronDelete',
-  'CronList',
-  'ScheduleWakeup',
-  'RemoteTrigger',
-  'PushNotification',
-  'Monitor',
-]
-
 const userInput = (first: SDKUserMessage) => {
   const queue = [first]
   let done = false
@@ -235,6 +230,9 @@ export const runTurn = (
       token: `kurumi-fake-${crypto.randomUUID()}`,
     }
     const progress = yield* Ref.make(initialProgress)
+    const run = Effect.runPromiseWith(yield* Effect.context<AgentRuntimeDb>())
+    const turnOver = yield* Deferred.make<void>()
+    const gateClosed = yield* Deferred.make<TurnEnd>()
     const input = userInput({
       type: 'user',
       message: { role: 'user', content: inbound.map((m) => m.body).join('\n\n') },
@@ -275,6 +273,41 @@ export const runTurn = (
         return true
       })
 
+    // approval-closed で closing の条件がそろっても SDK の出力は来ないので、閉じる判定をここからも起こす。
+    const approvalClosed = Ref.modify(progress, (p) => {
+      const next = advance(p, { type: 'approval-closed' })
+      return [{ closes: p.phase === 'running' && next.phase === 'closing' }, next] as const
+    }).pipe(
+      Effect.flatMap(({ closes }) =>
+        closes
+          ? transitionTurn(turnId, 'running', 'closing').pipe(
+              Effect.andThen(Deferred.succeed(gateClosed, { _tag: 'Completed' })),
+            )
+          : Effect.void,
+      ),
+    )
+    const gate = makeGate(deps, {
+      channel: session.channel,
+      conversation: session.conversation,
+      sessionId: session.id,
+      turnId,
+      ended: Effect.raceFirst(Deferred.await(control.stop), Deferred.await(turnOver)),
+      approvalOpened: Ref.update(progress, (p) => advance(p, { type: 'approval-opened' })),
+      approvalClosed,
+    })
+    const preToolUse: HookCallback = async (hookInput) => {
+      if (hookInput.hook_event_name !== 'PreToolUse') return {}
+      const permissionDecision = await run(
+        gate({
+          toolName: hookInput.tool_name,
+          toolUseId: hookInput.tool_use_id,
+          input: hookInput.tool_input,
+        }),
+      )
+      return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision } }
+    }
+    const hookTimeoutSeconds = Math.ceil(Duration.toSeconds(deps.approvalTimeout)) + 60
+
     const handle = (
       output: unknown,
     ): Effect.Effect<TurnEnd | undefined, StoreError, AgentRuntimeDb> =>
@@ -295,6 +328,7 @@ export const runTurn = (
         const next = yield* Ref.updateAndGet(progress, (p) => advance(p, event))
         if (event.type === 'result') {
           if (event.isError) {
+            yield* Ref.update(progress, (p) => ({ ...p, phase: 'closing' as const }))
             return {
               _tag: 'Failed',
               terminalReason: m.type === 'result' ? (m.terminal_reason ?? null) : null,
@@ -340,6 +374,19 @@ export const runTurn = (
                 permissionMode: 'bypassPermissions',
                 allowDangerouslySkipPermissions: true,
                 disallowedTools: forbiddenTools,
+                hooks: {
+                  PreToolUse: [
+                    { hooks: [preToolUse], timeout: hookTimeoutSeconds, onFailure: 'block' },
+                  ],
+                },
+                mcpServers: {
+                  kurumi: sendMessageServer({
+                    sessionId: session.id,
+                    turnId,
+                    notifyOutbound: deps.notifyOutbound,
+                    run,
+                  }),
+                },
                 ...(deps.model === undefined ? {} : { model: deps.model }),
                 ...(session.claudeSessionId === null ? {} : { resume: session.claudeSessionId }),
                 spawnClaudeCodeProcess: (options) => deps.sandbox.spawn(sandboxTurn, options),
@@ -355,6 +402,7 @@ export const runTurn = (
               Effect.catchCause((cause) => Effect.logError('sandbox dispose failed', cause)),
             ),
         )
+        yield* Effect.addFinalizer(() => Deferred.succeed(turnOver, undefined))
         yield* Effect.sleep(deps.turnTimeout).pipe(
           Effect.andThen(Deferred.succeed(control.stop, 'timeout')),
           Effect.forkScoped,
@@ -379,7 +427,7 @@ export const runTurn = (
           Effect.tap(() => interruptAndCancelQueued(q)),
           Effect.map((reason): TurnEnd => ({ _tag: 'Interrupted', reason })),
         )
-        const raced = yield* Effect.raceFirst(read, hostStop)
+        const raced = yield* Effect.raceAllFirst([read, hostStop, Deferred.await(gateClosed)])
         // 止め始めた後に CLI が result を返したり落ちたりしても、止めた理由のほうを残す。
         const stopped = (yield* Deferred.isDone(control.stop))
           ? yield* Deferred.await(control.stop)
