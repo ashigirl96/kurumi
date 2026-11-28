@@ -8,7 +8,6 @@ import {
 } from '@kurumi/agent-runtime/schema'
 import {
   AgentRuntimeDb,
-  type NewInboundMessage,
   createTurn,
   listInFlightTurns,
   recordToolCall,
@@ -18,48 +17,7 @@ import {
 import { Effect } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { dbLayer } from './db.ts'
-
-const inMemory = <A, E>(effect: Effect.Effect<A, E, AgentRuntimeDb | SqlClient.SqlClient>) =>
-  Effect.runPromise(effect.pipe(Effect.provide(dbLayer(':memory:'))))
-
-const message = (platformMessageId: string, channel = 'slack'): NewInboundMessage => ({
-  channel,
-  conversation: 'c1',
-  platformMessageId,
-  sender: 'u1',
-  body: 'hello',
-  receivedAt: new Date(0),
-})
-
-const inboundIdOf = (platformMessageId: string) =>
-  Effect.gen(function* () {
-    const db = yield* AgentRuntimeDb
-    const rows = yield* db.select().from(inboundMessages)
-    return rows.find((r) => r.platformMessageId === platformMessageId)!.id
-  })
-
-const turnState = (id: TurnId) =>
-  Effect.gen(function* () {
-    const db = yield* AgentRuntimeDb
-    return (yield* db.select().from(turns)).find((t) => t.id === id)?.state
-  })
-
-const newTurn = (...platformMessageIds: string[]) =>
-  Effect.gen(function* () {
-    for (const p of platformMessageIds) yield* saveInbound(message(p))
-    const ids = yield* Effect.all(platformMessageIds.map(inboundIdOf))
-    return yield* createTurn({
-      sessionId: 's1',
-      inboundIds: ids as [InboundMessageId, ...InboundMessageId[]],
-    })
-  })
-
-const advance = (id: TurnId) =>
-  Effect.gen(function* () {
-    yield* transitionTurn(id, 'queued', 'running')
-    yield* transitionTurn(id, 'running', 'closing')
-  })
+import { advance, inMemory, inboundIdOf, message, newTurn, turnState } from './test-support.ts'
 
 const call = (turnId: TurnId, toolUseId = 'tu1') => ({
   toolUseId,
