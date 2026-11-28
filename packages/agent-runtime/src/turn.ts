@@ -64,6 +64,7 @@ export type TurnProgress = {
 
 export type TurnEvent =
   | { readonly type: 'accepted'; readonly uuid: string }
+  | { readonly type: 'withdrawn'; readonly uuid: string }
   | {
       readonly type: 'lifecycle'
       readonly uuid: string
@@ -106,6 +107,11 @@ const step = (p: TurnProgress, e: TurnEvent): TurnProgress => {
   switch (e.type) {
     case 'accepted':
       return withPushed(p, e.uuid, 'accepted')
+    case 'withdrawn': {
+      const pushed = new Map(p.pushed)
+      pushed.delete(e.uuid)
+      return { ...p, pushed }
+    }
     case 'lifecycle':
       return withPushed(p, e.uuid, e.state)
     case 'assistant':
@@ -388,6 +394,20 @@ const executeTurn = (
       uuid: promptUuid,
     })
 
+    const closeWithoutOutput = (event: TurnEvent) =>
+      Ref.modify(progress, (p) => {
+        const next = advance(p, event)
+        return [p.phase === 'running' && next.phase === 'closing', next] as const
+      }).pipe(
+        Effect.flatMap((closes) =>
+          closes
+            ? transitionTurn(turnId, 'running', 'closing').pipe(
+                Effect.andThen(Deferred.succeed(gateClosed, { _tag: 'Completed' })),
+              )
+            : Effect.void,
+        ),
+      )
+
     control.accept = (row) =>
       Effect.gen(function* () {
         if (yield* Deferred.isDone(control.stop)) return false
@@ -398,13 +418,9 @@ const executeTurn = (
             : ([false, p] as const),
         )
         if (!taken) return false
-        const withdraw = Ref.update(progress, (p) => {
-          const pushed = new Map(p.pushed)
-          pushed.delete(uuid)
-          return { ...p, pushed }
-        })
+        const withdraw = closeWithoutOutput({ type: 'withdrawn', uuid })
         const assigned = yield* assignInboundToRunningTurn(row.id, turnId).pipe(
-          Effect.onError(() => withdraw),
+          Effect.onError(() => Effect.ignore(withdraw)),
         )
         if (!assigned) {
           yield* withdraw
@@ -420,18 +436,6 @@ const executeTurn = (
         return true
       })
 
-    const approvalClosed = Ref.modify(progress, (p) => {
-      const next = advance(p, { type: 'approval-closed' })
-      return [{ closes: p.phase === 'running' && next.phase === 'closing' }, next] as const
-    }).pipe(
-      Effect.flatMap(({ closes }) =>
-        closes
-          ? transitionTurn(turnId, 'running', 'closing').pipe(
-              Effect.andThen(Deferred.succeed(gateClosed, { _tag: 'Completed' })),
-            )
-          : Effect.void,
-      ),
-    )
     const gate = makeGate(deps, {
       channel: session.channel,
       conversation: session.conversation,
@@ -439,7 +443,7 @@ const executeTurn = (
       turnId,
       ended: Effect.raceFirst(Deferred.await(control.stop), Deferred.await(turnOver)),
       approvalOpened: Ref.update(progress, (p) => advance(p, { type: 'approval-opened' })),
-      approvalClosed,
+      approvalClosed: closeWithoutOutput({ type: 'approval-closed' }),
     })
     const preToolUse: HookCallback = async (hookInput) => {
       if (hookInput.hook_event_name !== 'PreToolUse') return {}

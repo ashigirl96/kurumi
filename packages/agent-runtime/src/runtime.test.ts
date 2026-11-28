@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { Effect, Exit } from 'effect'
+import { Deferred, Effect, Exit, Fiber } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { type ApprovalRequest, Runtime } from './runtime.ts'
@@ -536,6 +536,58 @@ describe('Runtime', () => {
         }),
       )
       expect(h.sandbox.spawns.map((s) => s.resume)).toEqual([false, true])
+    })
+
+    test('押し込みの割り当てが DB の障害で失敗しても、その間に読んだ result でターンは閉じ、受信は次のターンで答えられる', async () => {
+      const h = harness((n) => (n === 0 ? { first: { steps: [holdStep] } } : say('二つ目の答え')), {
+        turnTimeout: '2 seconds',
+      })
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          const sql = yield* SqlClient.SqlClient
+          yield* runtime.receive(inbound('最初'))
+          yield* atHold(h)
+          yield* eventually(
+            'init handled',
+            Effect.map(allSessions, (rows) => rows[0]?.claudeSessionId != null),
+          )
+          yield* sql`CREATE TRIGGER reject_push BEFORE UPDATE OF turn_id ON inbound_messages WHEN (SELECT state FROM turns WHERE id = NEW.turn_id) = 'running' BEGIN SELECT RAISE(ABORT, 'push assign failed'); END`
+          // DB の鍵を代わる代わるつかみ、receive を 1 文ずつ進めて、押し込みを受け付けてから割り当てるまでの間に result を読ませる。
+          const lockDb = Effect.gen(function* () {
+            const release = yield* Deferred.make<void>()
+            yield* sql.withTransaction(Deferred.await(release)).pipe(Effect.forkChild)
+            yield* Effect.sleep('50 millis')
+            return Deferred.succeed(release, undefined)
+          })
+          let unlock = yield* lockDb
+          const pushing = yield* runtime.receive(inbound('追加')).pipe(Effect.forkChild)
+          for (const _ of ['findSession', 'storeInbound']) {
+            yield* Effect.sleep('50 millis')
+            const next = yield* lockDb
+            yield* unlock
+            unlock = next
+          }
+          yield* Effect.sleep('50 millis')
+          h.sandbox.gate(0).release('hold')
+          yield* Effect.sleep('300 millis')
+          yield* unlock
+          expect(yield* Fiber.join(pushing)).toBe('stored')
+
+          yield* eventually(
+            'first ended',
+            Effect.map(allTurns, (rows) => rows[0]?.endedAt != null),
+          )
+          expect((yield* allTurns)[0]).toMatchObject({ state: 'completed', endReason: null })
+          yield* eventually('pushed answered', turnsEnded(2))
+          expect((yield* allInbound).map((m) => [m.body, m.outcome])).toEqual([
+            ['最初', 'answered'],
+            ['追加', 'answered'],
+          ])
+        }),
+      )
+      expect(h.delivered.map((m) => m.body)).toEqual(['二つ目の答え'])
     })
 
     test('/stop は押し込みを cancelled にして実行させず、ターンも受信も interrupted になる', async () => {
