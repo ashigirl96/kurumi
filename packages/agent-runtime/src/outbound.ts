@@ -18,6 +18,7 @@ export type Deliver = (message: OutboundToDeliver) => Effect.Effect<void, unknow
 export const makeOutbox = (
   channels: Readonly<Record<string, Deliver>>,
   retryDelay: Duration.Input,
+  deliverTimeout: Duration.Input = '60 seconds',
 ) =>
   Effect.gen(function* () {
     const wake = yield* Queue.sliding<void>(1)
@@ -38,7 +39,7 @@ export const makeOutbox = (
       const deliver = channels[next.channel]
       const exit = yield* (
         deliver ? deliver(next) : Effect.fail(new Error(`unknown channel: ${next.channel}`))
-      ).pipe(Effect.exit)
+      ).pipe(Effect.timeout(deliverTimeout), Effect.exit)
       // 届いた行を配達し直さないよう、記録だけをやり直す。
       if (Exit.isSuccess(exit))
         return yield* markDelivered(next.id).pipe(

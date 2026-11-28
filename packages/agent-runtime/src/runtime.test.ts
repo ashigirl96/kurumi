@@ -285,6 +285,37 @@ describe('Runtime', () => {
     expect(succeeded).toEqual(['別の会話の答え', '途中経過', '最後の文'])
   })
 
+  test('配達関数が返らなくても、時間切れで失敗と同じに扱い、ほかの会話の行は届き、後で配達し直される', async () => {
+    let stuck = true
+    const succeeded: string[] = []
+    const h = harness((n) => say(n === 0 ? '止まった会話の答え' : '別の会話の答え'), {
+      deliveryTimeout: '200 millis',
+      deliver: (m) =>
+        Effect.suspend(() => {
+          if (m.conversation === 'stuck' && stuck) {
+            stuck = false
+            return Effect.never
+          }
+          succeeded.push(m.body)
+          return Effect.void
+        }),
+    })
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        yield* runtime.receive(inbound('やって', { conversation: 'stuck' }))
+        yield* eventually(
+          'stuck delivery started',
+          Effect.sync(() => !stuck),
+        )
+        yield* runtime.receive(inbound('こちらも', { conversation: 'working' }))
+        yield* deliveredRows(2)
+      }),
+    )
+    expect(succeeded).toEqual(['別の会話の答え', '止まった会話の答え'])
+  })
+
   test('配達の後に delivered を書けなくても、配達し直さず、書けるようになったら delivered になる', async () => {
     const h = harness(() => say('一度だけ届く'))
     await run(

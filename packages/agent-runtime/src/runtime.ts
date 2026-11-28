@@ -64,6 +64,8 @@ export type RuntimeConfig = {
   readonly turnTimeout?: Duration.Input
   /** 既定は 15 分 */
   readonly approvalTimeout?: Duration.Input
+  /** 配達関数を待つ時間。既定は 60 秒 */
+  readonly deliveryTimeout?: Duration.Input
 }
 
 export type RuntimeApi = {
@@ -82,7 +84,7 @@ const makeRuntime = (config: RuntimeConfig) =>
   Effect.gen(function* () {
     const db = yield* AgentRuntimeDb
     const scope = yield* Effect.scope
-    const outbox = yield* makeOutbox(config.channels, deliveryRetryDelay)
+    const outbox = yield* makeOutbox(config.channels, deliveryRetryDelay, config.deliveryTimeout)
 
     const turnSlots = yield* Semaphore.make(config.maxConcurrentTurns ?? 3)
     const sessionLocks = new Map<string, Semaphore.Semaphore>()
