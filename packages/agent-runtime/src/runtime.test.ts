@@ -587,6 +587,24 @@ describe('Runtime', () => {
       expect(h.sandbox.alive()).toBe(0)
     })
 
+    test('ターンが受信を読んだ後、割り当てる前に /stop が取り消した受信は、ターンに渡らない', async () => {
+      const h = harness(() => say('答えてはいけない'))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          const sql = yield* SqlClient.SqlClient
+          // ターンの行を作った瞬間に /stop の取り消しが割り込んだことにする。取り消しは割り当てに失敗したトランザクションごと戻る。
+          yield* sql`CREATE TRIGGER stop_lands BEFORE INSERT ON turns BEGIN UPDATE inbound_messages SET outcome = 'interrupted' WHERE turn_id IS NULL AND outcome IS NULL; END`
+          yield* runtime.receive(inbound('取り消される'))
+          yield* Effect.sleep('300 millis')
+          expect(yield* allTurns).toHaveLength(0)
+          expect((yield* allInbound).map((m) => m.turnId)).toEqual([null])
+        }),
+      )
+      expect(h.sandbox.spawns).toHaveLength(0)
+    })
+
     test('再配達された /stop は duplicate で、後から始まったターンを止めない', async () => {
       const h = harness((n) => (n === 0 ? say('答え') : parked()))
       await run(

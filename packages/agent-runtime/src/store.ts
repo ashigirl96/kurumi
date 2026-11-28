@@ -133,7 +133,11 @@ export const createTurn = (input: {
           .update(inboundMessages)
           .set({ turnId: turn!.id })
           .where(
-            and(inArray(inboundMessages.id, [...input.inboundIds]), isNull(inboundMessages.turnId)),
+            and(
+              inArray(inboundMessages.id, [...input.inboundIds]),
+              isNull(inboundMessages.turnId),
+              isNull(inboundMessages.outcome),
+            ),
           )
           .returning({ id: inboundMessages.id })
         if (assigned.length !== input.inboundIds.length) {

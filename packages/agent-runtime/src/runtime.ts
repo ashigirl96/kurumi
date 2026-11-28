@@ -113,18 +113,25 @@ const makeRuntime = (config: RuntimeConfig) =>
           Effect.gen(function* () {
             const session = yield* getSession(sessionId)
             if (session?.status !== 'active') return
-            const control: TurnControl = {
-              stop: yield* Deferred.make<'stopped' | 'timeout'>(),
-              accept: undefined,
-            }
-            activeTurns.set(sessionId, control)
-            yield* Effect.gen(function* () {
+            // 読んだ後に止める合図を置くので、読む前の /stop は受信の取り消しだけで、このターンを止めない。
+            const startTurn = Effect.gen(function* () {
               const [first, ...rest] = yield* listUnassignedInbound(
                 session.channel,
                 session.conversation,
               )
-              if (first) yield* runTurn(turnDeps, session, [first, ...rest], control)
-            }).pipe(Effect.ensuring(Effect.sync(() => activeTurns.delete(sessionId))))
+              if (!first) return
+              const control: TurnControl = {
+                stop: yield* Deferred.make<'stopped' | 'timeout'>(),
+                accept: undefined,
+              }
+              activeTurns.set(sessionId, control)
+              yield* runTurn(turnDeps, session, [first, ...rest], control)
+            })
+            // 読んでから割り当てるまでに /stop が受信を取り消したら、新しい合図で読み直す。
+            yield* startTurn.pipe(
+              Effect.catchTag('InboundNotAssignable', () => startTurn),
+              Effect.ensuring(Effect.sync(() => activeTurns.delete(sessionId))),
+            )
           }),
         ),
       )
