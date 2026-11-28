@@ -293,7 +293,7 @@ export const runTurn = (
           Stream.filter((result): result is TurnEnd => result !== undefined),
           Stream.runHead,
           Effect.catchTag('SdkStreamFailed', (error) =>
-            Effect.logWarning('sdk stream failed', error.cause).pipe(
+            Effect.logWarning(`sdk stream failed: ${String(error.cause)}`).pipe(
               Effect.as(Option.none<TurnEnd>()),
             ),
           ),

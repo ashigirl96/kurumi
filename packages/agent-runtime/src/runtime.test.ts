@@ -317,4 +317,49 @@ describe('Runtime', () => {
     expect(h.sandbox.alive()).toBe(0)
     expect(h.sandbox.disposed).toHaveLength(1)
   })
+  describe('ターンの終わり方', () => {
+    test('result が is_error なら failed で、受信は failed、知らせが届く', async () => {
+      const h = harness(() => ({
+        first: { finish: { isError: true, terminalReason: 'api_error', text: '使われない' } },
+      }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('失敗する'))
+          yield* eventually(
+            'failed',
+            Effect.map(allTurns, (rows) => rows.length === 1 && rows[0]?.state === 'failed'),
+          )
+          expect((yield* allTurns)[0]?.endReason).toBe('api_error')
+          expect((yield* allInbound).map((m) => m.outcome)).toEqual(['failed'])
+          yield* eventually(
+            'notice delivered',
+            Effect.map(allOutbound, (rows) => rows.length === 1 && rows[0]?.state === 'delivered'),
+          )
+        }),
+      )
+      expect(h.delivered.map((m) => m.kind)).toEqual(['notice'])
+    })
+
+    test('CLI が途中で落ちたら interrupted で、やり直さない', async () => {
+      const h = harness(() => ({ first: { steps: [{ kind: 'crash', code: 1 }] } }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('落ちる'))
+          yield* eventually(
+            'interrupted',
+            Effect.map(allTurns, (rows) => rows.length === 1 && rows[0]?.state === 'interrupted'),
+          )
+          expect((yield* allTurns)[0]?.endReason).toBe('sandbox_exit')
+          expect((yield* allInbound).map((m) => m.outcome)).toEqual(['interrupted'])
+          yield* Effect.sleep('200 millis')
+          expect(yield* allTurns).toHaveLength(1)
+        }),
+      )
+      expect(h.sandbox.spawns).toHaveLength(1)
+    })
+  })
 })

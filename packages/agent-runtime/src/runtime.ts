@@ -8,7 +8,6 @@ import type { Sandbox } from './sandbox.ts'
 import type { TurnId } from './schema.ts'
 import {
   AgentRuntimeDb,
-  type InboundRow,
   type SessionRow,
   type DbError,
   findSession,
@@ -166,5 +165,3 @@ export class Runtime extends Context.Service<Runtime, RuntimeApi>()(
   static readonly layer = (config: RuntimeConfig): Layer.Layer<Runtime, never, AgentRuntimeDb> =>
     Layer.effect(Runtime, makeRuntime(config))
 }
-
-export type { InboundRow }
