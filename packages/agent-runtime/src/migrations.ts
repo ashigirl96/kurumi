@@ -1,4 +1,6 @@
+import { join } from 'node:path'
+
 export const agentRuntimeMigrations = {
-  migrationsFolder: new URL('../migrations', import.meta.url).pathname,
+  migrationsFolder: join(import.meta.dir, '../migrations'),
   migrationsTable: '__drizzle_migrations_agent_runtime',
 }
