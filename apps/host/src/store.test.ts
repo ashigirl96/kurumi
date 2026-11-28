@@ -110,8 +110,8 @@ describe('transitionTurn', () => {
         const id = yield* newTurn('a')
         yield* advance(id)
         yield* transitionTurn(id, 'closing', 'completed')
-        // @ts-expect-error completed has no way out; the type forbids this pair
-        const moved = yield* transitionTurn(id, 'completed', 'running')
+        const from = (yield* turnState(id))!
+        const moved = yield* transitionTurn(id, from, 'running')
         return { moved, state: yield* turnState(id) }
       }),
     )

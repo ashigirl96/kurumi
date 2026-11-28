@@ -86,10 +86,14 @@ export const createTurn = (input: {
     )
   })
 
+type TurnTarget<From extends TurnState> = From extends TurnState
+  ? (typeof turnTransitions)[From][number]
+  : never
+
 export const transitionTurn = <From extends TurnState>(
   turnId: TurnId,
   from: From,
-  to: (typeof turnTransitions)[From][number],
+  to: TurnTarget<From>,
 ) =>
   Effect.gen(function* () {
     if (!(turnTransitions[from] as readonly TurnState[]).includes(to)) return false
