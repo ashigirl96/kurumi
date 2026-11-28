@@ -1,0 +1,2 @@
+ALTER TABLE `sessions` ADD `channel` text NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX `sessions_active_channel_conversation` ON `sessions` (`channel`,`conversation`) WHERE "sessions"."status" = 'active';
