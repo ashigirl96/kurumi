@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process'
 // ターミナルを 1 つのチャンネルに見立てて Agent Runtime を手元で試す開発用の script。チャンネルの実装ではない。
+import { execFileSync } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -67,12 +67,14 @@ rl.on('close', () => {
   ended = true
   wake?.()
 })
-process.on('SIGINT', () => {
-  lines.length = 0
-  ended = true
-  drain = false
-  wake?.()
-})
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(signal, () => {
+    lines.length = 0
+    ended = true
+    drain = false
+    wake?.()
+  })
+}
 
 const pendingApprovals: ApprovalRequest[] = []
 
