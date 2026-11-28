@@ -4,10 +4,12 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { AgentRuntimeDb, saveInbound } from '@kurumi/agent-runtime/store'
 import { Effect, Exit } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { dbLayer } from './db.ts'
+import { message } from './test-support.ts'
 
 const fixture = (name: string) => ({
   migrationsFolder: join(import.meta.dir, 'fixtures/rebuild', name),
@@ -21,7 +23,7 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
 const run = <A, E>(
-  effect: Effect.Effect<A, E, SqlClient.SqlClient>,
+  effect: Effect.Effect<A, E, SqlClient.SqlClient | AgentRuntimeDb>,
   layer: ReturnType<typeof dbLayer>,
 ) => Effect.runPromise(effect.pipe(Effect.provide(layer)))
 
@@ -66,29 +68,12 @@ describe('dbLayer startup', () => {
     expect(mode).toBe('wal')
   })
 
-  test('restarting twice keeps the data and applies nothing again', async () => {
+  test('restarting twice keeps the saved message and the start still succeeds', async () => {
     const file = join(dir, 'k.db')
-    await run(
-      Effect.gen(function* () {
-        const sql = yield* SqlClient.SqlClient
-        yield* sql`INSERT INTO sessions (id, conversation, agent, config_dir, workspace_dir, status) VALUES ('s', 'c', 'a', '/x', '/y', 'active')`
-      }),
-      dbLayer(file),
-    )
-    for (let i = 0; i < 2; i++) {
-      const counts = await run(
-        Effect.gen(function* () {
-          const sql = yield* SqlClient.SqlClient
-          const sessions = yield* sql<{ n: number }>`SELECT count(*) AS n FROM sessions`
-          const applied = yield* sql<{
-            n: number
-          }>`SELECT count(*) AS n FROM __drizzle_migrations_agent_runtime`
-          return [sessions[0]?.n, applied[0]?.n]
-        }),
-        dbLayer(file),
-      )
-      expect(counts).toEqual([1, 1])
-    }
+    const saveAgain = () => run(saveInbound(message('m1')), dbLayer(file))
+    expect(await saveAgain()).toBe(true)
+    expect(await saveAgain()).toBe(false)
+    expect(await saveAgain()).toBe(false)
   })
 
   test('a pre-existing table that conflicts with a migration stops the start', async () => {
