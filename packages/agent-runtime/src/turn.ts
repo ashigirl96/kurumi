@@ -292,7 +292,11 @@ export const runTurn = (
   })
 
 type Prepared =
-  | { readonly _tag: 'Ready'; readonly previous: PreviousInterruption | undefined }
+  | {
+      readonly _tag: 'Ready'
+      readonly previous: PreviousInterruption | undefined
+      readonly resume: string | undefined
+    }
   | TurnEnd
 
 const prepare = (
@@ -302,6 +306,7 @@ const prepare = (
   token: string,
 ): Effect.Effect<Prepared, DbError, AgentRuntimeDb> =>
   Effect.gen(function* () {
+    let resume: string | undefined
     if (session.claudeSessionId !== null) {
       const last = yield* findLastCompletedTurn(session.id, turnId)
       const required = [last?.promptUuid, last?.lastAssistantUuid].filter(
@@ -310,7 +315,9 @@ const prepare = (
       const readable = yield* Effect.promise(() =>
         transcriptHolds(session.configDir, session.claudeSessionId!, required),
       )
-      if (!readable) return { _tag: 'Interrupted', reason: 'resume_unreadable' }
+      if (readable) resume = session.claudeSessionId
+      // 完了したターンが無ければ失う文脈も無いので、会話記録が無くても新しく始める。
+      else if (last !== undefined) return { _tag: 'Interrupted', reason: 'resume_unreadable' }
     }
     const previous = yield* findPreviousInterruption(session.id, turnId)
     yield* (
@@ -322,7 +329,7 @@ const prepare = (
         turnId,
       }) ?? Effect.void
     )
-    return { _tag: 'Ready', previous }
+    return { _tag: 'Ready', previous, resume }
   })
 
 const executeTurn = (
@@ -362,7 +369,7 @@ const executeTurn = (
       yield* deps.notifyOutbound
       return
     }
-    const { previous } = prepared
+    const { previous, resume } = prepared
 
     const progress = yield* Ref.make(initialProgress)
     const run = Effect.runPromiseWith(yield* Effect.context<AgentRuntimeDb>())
@@ -455,7 +462,7 @@ const executeTurn = (
         if (!parsed.success) return undefined
         const m = parsed.data
         if (m.type === 'system') {
-          yield* setClaudeSessionId(session.id, m.session_id)
+          if (resume === undefined) yield* setClaudeSessionId(session.id, m.session_id)
           return undefined
         }
         const event: TurnEvent =
@@ -518,7 +525,7 @@ const executeTurn = (
                   }),
                 },
                 ...(deps.model === undefined ? {} : { model: deps.model }),
-                ...(session.claudeSessionId === null ? {} : { resume: session.claudeSessionId }),
+                ...(resume === undefined ? {} : { resume }),
                 spawnClaudeCodeProcess: (options) => deps.sandbox.spawn(sandboxTurn, options),
               },
             }),

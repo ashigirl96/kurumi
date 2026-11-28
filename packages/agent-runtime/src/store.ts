@@ -227,10 +227,7 @@ export const insertSession = (session: typeof sessions.$inferInsert) =>
 export const setClaudeSessionId = (sessionId: string, claudeSessionId: string) =>
   Effect.gen(function* () {
     const db = yield* AgentRuntimeDb
-    yield* db
-      .update(sessions)
-      .set({ claudeSessionId })
-      .where(and(eq(sessions.id, sessionId), isNull(sessions.claudeSessionId)))
+    yield* db.update(sessions).set({ claudeSessionId }).where(eq(sessions.id, sessionId))
   })
 
 export type PreviousInterruption = {

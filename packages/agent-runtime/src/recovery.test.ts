@@ -287,6 +287,48 @@ describe('resume の照合と /new', () => {
     expect(h.sandbox.spawns.map((s) => s.resume)).toEqual([false, true])
   })
 
+  test('最初のターンが会話記録を書く前に中断されても、lost にせず新しく始め、次のターンはその会話を resume する', async () => {
+    const h = harness((n) => (n === 0 ? parked() : say(n === 1 ? '新しい答え' : '続きの答え')))
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        yield* runtime.receive(inbound('a'))
+        yield* Effect.promise(() => h.sandbox.gate(0).reached('hold'))
+        yield* eventually(
+          'claude session id saved',
+          Effect.map(allSessions, (rows) => rows[0]?.claudeSessionId != null),
+        )
+        yield* runtime.receive(inbound('/stop'))
+        yield* eventually(
+          'interrupted',
+          Effect.map(allTurns, (rows) => rows[0]?.state === 'interrupted'),
+        )
+        const [before] = yield* allSessions
+        // 本物の CLI は、会話記録を書く前に system/init を出す。
+        rmSync(join(before!.configDir, 'projects'), { recursive: true })
+
+        yield* runtime.receive(inbound('b'))
+        yield* eventually(
+          'second ended',
+          Effect.map(allTurns, (rows) => rows[1]?.endedAt != null),
+        )
+        expect((yield* allTurns)[1]).toMatchObject({ state: 'completed', endReason: null })
+        const [after] = yield* allSessions
+        expect(after?.status).toBe('active')
+        expect(after?.claudeSessionId).not.toBe(before!.claudeSessionId)
+
+        yield* runtime.receive(inbound('c'))
+        yield* eventually(
+          'third ended',
+          Effect.map(allTurns, (rows) => rows[2]?.state === 'completed'),
+        )
+        expect(h.sandbox.spawns[2]?.args).toContain(`--resume=${after!.claudeSessionId}`)
+      }),
+    )
+    expect(h.sandbox.spawns.map((s) => s.resume)).toEqual([false, false, true])
+  })
+
   test('/new は lost でなければ何もせず、ターンにも渡らない', async () => {
     const h = harness(() => say('答え'))
     await run(
