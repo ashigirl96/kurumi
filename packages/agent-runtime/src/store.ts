@@ -1,4 +1,16 @@
-import { and, asc, defineRelations, desc, eq, exists, inArray, isNull, lt, ne } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  defineRelations,
+  desc,
+  eq,
+  exists,
+  inArray,
+  isNull,
+  lt,
+  ne,
+  notInArray,
+} from 'drizzle-orm'
 import * as Drizzle from 'drizzle-orm/effect-sqlite-bun'
 import { Context, Data, Effect, Layer } from 'effect'
 
@@ -391,31 +403,38 @@ export const closeTurn = (closing: TurnClosing) =>
     )
   })
 
-export const claimNextOutbound = Effect.gen(function* () {
-  const db = yield* AgentRuntimeDb
-  const [next] = yield* db
-    .select({
-      id: outboundMessages.id,
-      channel: sessions.channel,
-      conversation: sessions.conversation,
-      sessionId: outboundMessages.sessionId,
-      turnId: outboundMessages.turnId,
-      kind: outboundMessages.kind,
-      body: outboundMessages.body,
-    })
-    .from(outboundMessages)
-    .innerJoin(sessions, eq(sessions.id, outboundMessages.sessionId))
-    .where(eq(outboundMessages.state, 'pending'))
-    .orderBy(asc(outboundMessages.id))
-    .limit(1)
-  if (!next) return undefined
-  const claimed = yield* db
-    .update(outboundMessages)
-    .set({ state: 'sending' })
-    .where(and(eq(outboundMessages.id, next.id), eq(outboundMessages.state, 'pending')))
-    .returning({ id: outboundMessages.id })
-  return claimed.length === 1 ? next : undefined
-})
+/** `skipSessions` のセッションの行は選ばない。選ぶのはセッションごとに id の最も小さい行なので、セッションの中の順は崩れない。 */
+export const claimNextOutbound = (skipSessions: readonly string[]) =>
+  Effect.gen(function* () {
+    const db = yield* AgentRuntimeDb
+    const [next] = yield* db
+      .select({
+        id: outboundMessages.id,
+        channel: sessions.channel,
+        conversation: sessions.conversation,
+        sessionId: outboundMessages.sessionId,
+        turnId: outboundMessages.turnId,
+        kind: outboundMessages.kind,
+        body: outboundMessages.body,
+      })
+      .from(outboundMessages)
+      .innerJoin(sessions, eq(sessions.id, outboundMessages.sessionId))
+      .where(
+        and(
+          eq(outboundMessages.state, 'pending'),
+          notInArray(outboundMessages.sessionId, [...skipSessions]),
+        ),
+      )
+      .orderBy(asc(outboundMessages.id))
+      .limit(1)
+    if (!next) return undefined
+    const claimed = yield* db
+      .update(outboundMessages)
+      .set({ state: 'sending' })
+      .where(and(eq(outboundMessages.id, next.id), eq(outboundMessages.state, 'pending')))
+      .returning({ id: outboundMessages.id })
+    return claimed.length === 1 ? next : undefined
+  })
 
 export const releaseAllSendingOutbound = Effect.gen(function* () {
   const db = yield* AgentRuntimeDb

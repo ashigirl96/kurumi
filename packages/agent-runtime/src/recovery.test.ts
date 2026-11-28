@@ -266,7 +266,7 @@ describe('起動時の復旧', () => {
         body: '配達の途中だった送信',
         idempotencyKey: 'progress:t1',
       })
-      yield* claimNextOutbound
+      yield* claimNextOutbound([])
       yield* received('待っていた受信')
     })
     const snapshot = Effect.all([allTurns, allInbound, allOutbound, allSessions, allToolCalls])

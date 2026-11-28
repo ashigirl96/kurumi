@@ -222,6 +222,39 @@ describe('Runtime', () => {
     expect(succeeded).toEqual(['届け直す'])
   })
 
+  test('ある会話の配達が失敗し続けても、ほかの会話の行は届き、失敗した会話の中の順は保たれる', async () => {
+    const succeeded: string[] = []
+    const h = harness(
+      (n) =>
+        n === 0
+          ? { first: { steps: [send('途中経過'), { kind: 'say', text: '最後の文' }] } }
+          : say('別の会話の答え'),
+      {
+        deliver: (m) =>
+          Effect.suspend(() => {
+            if (m.conversation === 'broken' && !succeeded.includes('別の会話の答え'))
+              return Effect.fail(new Error('この会話には届かない'))
+            succeeded.push(m.body)
+            return Effect.void
+          }),
+      },
+    )
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        yield* runtime.receive(inbound('やって', { conversation: 'broken' }))
+        yield* eventually(
+          'broken rows written',
+          Effect.map(allOutbound, (rows) => rows.length === 2),
+        )
+        yield* runtime.receive(inbound('こちらも', { conversation: 'working' }))
+        yield* deliveredRows(3)
+      }),
+    )
+    expect(succeeded).toEqual(['別の会話の答え', '途中経過', '最後の文'])
+  })
+
   test('同じセッションの 2 つ目のターンは resume で起こされ、作業場所のファイルが残っている', async () => {
     const h = harness((n) =>
       n === 0
