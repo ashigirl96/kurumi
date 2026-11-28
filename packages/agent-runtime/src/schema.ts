@@ -7,9 +7,12 @@ import {
   text,
   unique,
 } from 'drizzle-orm/sqlite-core'
+import { Brand } from 'effect'
 
-export type TurnId = number & { readonly __brand: 'TurnId' }
-export type InboundMessageId = number & { readonly __brand: 'InboundMessageId' }
+export type TurnId = number & Brand.Brand<'TurnId'>
+export const TurnId = Brand.nominal<TurnId>()
+export type InboundMessageId = number & Brand.Brand<'InboundMessageId'>
+export const InboundMessageId = Brand.nominal<InboundMessageId>()
 
 export const turnStates = [
   'queued',
@@ -26,7 +29,6 @@ export const sessionStatuses = ['active', 'lost'] as const
 
 export type TurnState = (typeof turnStates)[number]
 
-// Drizzle の SQLite 表には STRICT がないので、列の値は CHECK で縛る。
 const oneOf = (name: string, column: AnySQLiteColumn, values: readonly string[]) =>
   check(name, sql`${column} in (${sql.raw(values.map((v) => `'${v}'`).join(','))})`)
 

@@ -1,9 +1,4 @@
-import {
-  type InboundMessageId,
-  type TurnId,
-  inboundMessages,
-  turns,
-} from '@kurumi/agent-runtime/schema'
+import { type TurnId, inboundMessages, turns } from '@kurumi/agent-runtime/schema'
 import {
   AgentRuntimeDb,
   type NewInboundMessage,
@@ -41,14 +36,11 @@ export const turnState = (id: TurnId) =>
     return (yield* db.select().from(turns)).find((t) => t.id === id)?.state
   })
 
-export const newTurn = (...platformMessageIds: string[]) =>
+export const newTurn = (first: string, ...rest: string[]) =>
   Effect.gen(function* () {
-    for (const p of platformMessageIds) yield* saveInbound(message(p))
-    const ids = yield* Effect.all(platformMessageIds.map(inboundIdOf))
-    return yield* createTurn({
-      sessionId: 's1',
-      inboundIds: ids as [InboundMessageId, ...InboundMessageId[]],
-    })
+    for (const p of [first, ...rest]) yield* saveInbound(message(p))
+    const inboundIds = yield* Effect.all([inboundIdOf(first), ...rest.map(inboundIdOf)])
+    return yield* createTurn({ sessionId: 's1', inboundIds })
   })
 
 export const advance = (id: TurnId) =>

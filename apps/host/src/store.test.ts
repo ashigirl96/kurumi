@@ -1,11 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import {
-  type InboundMessageId,
-  type TurnId,
-  inboundMessages,
-  turns,
-} from '@kurumi/agent-runtime/schema'
+import { InboundMessageId, TurnId, inboundMessages, turns } from '@kurumi/agent-runtime/schema'
 import {
   AgentRuntimeDb,
   createTurn,
@@ -86,7 +81,7 @@ describe('createTurn', () => {
     const turnCount = await inMemory(
       Effect.gen(function* () {
         const failure = yield* Effect.flip(
-          createTurn({ sessionId: 's', inboundIds: [999 as InboundMessageId] }),
+          createTurn({ sessionId: 's', inboundIds: [InboundMessageId(999)] }),
         )
         expect(failure._tag).toBe('InboundNotAssignable')
         const db = yield* AgentRuntimeDb
@@ -171,7 +166,7 @@ describe('recordToolCall', () => {
   })
 
   test('a call for a turn that does not exist is refused', async () => {
-    const result = await inMemory(Effect.flip(recordToolCall(call(999 as TurnId))))
+    const result = await inMemory(Effect.flip(recordToolCall(call(TurnId(999)))))
     expect(result._tag).toBe('EffectDrizzleQueryError')
   })
 })
