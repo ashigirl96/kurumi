@@ -237,7 +237,11 @@ describe.skipIf(!realChecksEnabled)('本物の Docker と Claude Code CLI', () =
           expect(new Set(started.map((l) => l.command_uuid)).size).toBe(1)
           expect(resultLines(h.lines)).toHaveLength(1)
           expect((yield* finals).length).toBe(0)
-          expect((yield* allInbound).map((r) => r.outcome)).toEqual(['interrupted', 'interrupted'])
+          expect((yield* allInbound).map((r) => [r.body.slice(0, 5), r.outcome])).toEqual([
+            ['Run e', 'interrupted'],
+            ['Side ', 'interrupted'],
+            ['/stop', 'answered'],
+          ])
           expect((yield* allTurns)[0]?.endReason).toBe('stopped')
         }),
       )
@@ -385,8 +389,7 @@ describe.skipIf(!realChecksEnabled)('本物の Docker と Claude Code CLI', () =
     turnTimeout,
   )
 
-  // 今の Runtime は client_composed を付けないので、/help は CLI のコマンドとして実行される。付けて直すまで失敗が正しい。
-  test.failing(
+  test(
     '/ で始まる利用者の文が、CLI のコマンドとして実行されず、エージェントへの文として扱われる',
     async () => {
       const h = harnessOf()

@@ -37,15 +37,13 @@ CLAUDE_REAL_TOKEN=<Claude Code の OAuth トークン> \
 | 硬化フラグ | 動いているコンテナを `docker inspect` で見て、フラグが付いている。そのうえで 1 つのターンが完走する | `dockerRunArgs` のフラグ一式 |
 | 仕込まれた設定 | 作業場所と `CLAUDE_CONFIG_DIR` に置いたフックと MCP の設定が動かない。同じファイルは `settingSources` を開けると動く（対照） | `settingSources: []`、`strictMcpConfig` |
 | 止めてから `resume` | `/stop` の後の次のターンが、`lost` にならずに完了する | 照合（`transcriptHolds`） |
-| `/` で始まる文 | `/help` が CLI のコマンドとして実行されない | 下の「分かっていること」 |
+| `/` で始まる文 | `/help` が CLI のコマンドとして実行されず、エージェントへの文として答えられる。`client_composed` を付けない対照では、コマンドとして実行されてモデルが呼ばれない | user のメッセージの `client_composed: true` |
 
 `CLAUDE_CODE_MAX_RETRIES`（型定義に載っていない 3 つ目の依存）は、仕様の 8 つの筋書きに入っていないので、ここでは確かめていない。
 
 ## 分かっていること
 
-- `/help` のような `/` で始まる文は、今の `Runtime` では CLI のコマンドとして実行される。`system` の `local_command_outcome` が `unavailable_headless` で、`num_turns` は 0、モデルは呼ばれず、利用者には `/help isn't available in this environment.` が返る（SDK 0.3.332、CLI 2.1.332、Mac）。`Runtime` は `client_composed: true` を付けていない。
-- `client_composed: true` を付けると、同じ文がエージェントへの文として扱われる（`num_turns` が 1 以上）。この確認は、テスト「client_composed を付けるとエージェントへの文として扱われる」にある。
-- そのため、`/` で始まる文のテストは `test.failing`（今は失敗するのが正しい）にしてある。`Runtime` が `client_composed` を付けて直したら、このテストが「通ってしまった」と言って失敗するので、`.failing` を外す。
+- `client_composed: true` を付けない user のメッセージでは、`/help` のような `/` で始まる文が CLI のコマンドとして実行される。`system` の `local_command_outcome` が `unavailable_headless` で、`num_turns` は 0、モデルは呼ばれない（SDK 0.3.332、CLI 2.1.332、Mac）。`Runtime` はすべての user のメッセージに `client_composed: true` を付ける。`client_composed` は型定義にあるが、この振る舞いは型定義に書かれていないので、版を上げたら流し直す。
 
 ## SDK と CLI の版を上げるとき
 
