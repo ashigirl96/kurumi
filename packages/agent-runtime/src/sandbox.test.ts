@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { type DockerConfig, type TurnSandbox, dockerRunArgs } from './sandbox.ts'
+import { type DockerConfig, type TurnSandbox, dockerClientEnv, dockerRunArgs } from './sandbox.ts'
 
 const config: DockerConfig = {
   image: 'kurumi-agent:sdk-0.3.332',
@@ -29,12 +29,12 @@ const run = (env?: Record<string, string | undefined>, c: DockerConfig = config)
 
 const valueOf = (args: string[], flag: string) => args[args.indexOf(flag) + 1]
 
-const envOf = (args: string[]) =>
-  Object.fromEntries(
-    args.flatMap((a, i) =>
-      args[i - 1] === '-e' ? [[a.slice(0, a.indexOf('=')), a.slice(a.indexOf('=') + 1)]] : [],
-    ),
-  )
+const envNamesOf = (args: string[]) => args.filter((a, i) => args[i - 1] === '-e')
+
+const hostEnv = { PATH: '/usr/bin', HOME: '/home/svc', DOCKER_HOST: 'unix:///run/docker.sock' }
+
+const clientEnv = (env?: Record<string, string | undefined>) =>
+  dockerClientEnv(config, turn, spawnOptions(env), hostEnv)
 
 describe('dockerRunArgs', () => {
   test('carries every hardening flag of the container spec', () => {
@@ -80,9 +80,33 @@ describe('dockerRunArgs', () => {
     ])
   })
 
-  test('passes only the allowlisted environment, whatever the SDK offers', () => {
-    const env = envOf(
-      run({
+  test('names the container variables on the command line without their values', () => {
+    const args = run({ CLAUDE_CODE_ENTRYPOINT: 'sdk-ts' })
+    expect(envNamesOf(args).toSorted()).toEqual([
+      'ANTHROPIC_BASE_URL',
+      'CLAUDE_CODE_DISABLE_BACKGROUND_TASKS',
+      'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
+      'CLAUDE_CODE_ENTRYPOINT',
+      'CLAUDE_CODE_OAUTH_TOKEN',
+      'CLAUDE_CONFIG_DIR',
+    ])
+    expect(args.join(' ')).not.toContain('fake-token-1')
+  })
+
+  test('never lets a host secret reach the command line', () => {
+    const joined = run({
+      ANTHROPIC_API_KEY: 'sk-ant-host-secret',
+      AWS_SECRET_ACCESS_KEY: 'aws-host-secret',
+    }).join(' ')
+    expect(joined).not.toContain('host-secret')
+    expect(
+      envNamesOf(run({ ANTHROPIC_API_KEY: 'x', CLAUDE_CODE_RESUME_INTERRUPTED_TURN: '1' })),
+    ).not.toContain('CLAUDE_CODE_RESUME_INTERRUPTED_TURN')
+  })
+
+  test('hands the docker client only the allowlisted environment, whatever the SDK offers', () => {
+    expect(
+      clientEnv({
         CLAUDE_CODE_ENTRYPOINT: 'sdk-ts',
         ANTHROPIC_API_KEY: 'sk-ant-host-secret',
         AWS_SECRET_ACCESS_KEY: 'aws-host-secret',
@@ -91,8 +115,10 @@ describe('dockerRunArgs', () => {
         HOME: '/Users/someone',
         PATH: '/usr/bin',
       }),
-    )
-    expect(env).toEqual({
+    ).toEqual({
+      PATH: '/usr/bin',
+      HOME: '/home/svc',
+      DOCKER_HOST: 'unix:///run/docker.sock',
       CLAUDE_CODE_ENTRYPOINT: 'sdk-ts',
       CLAUDE_CONFIG_DIR: '/cfg',
       CLAUDE_CODE_OAUTH_TOKEN: 'fake-token-1',
@@ -102,15 +128,8 @@ describe('dockerRunArgs', () => {
     })
   })
 
-  test('never lets a host secret reach the command line', () => {
-    const joined = run({
-      ANTHROPIC_API_KEY: 'sk-ant-host-secret',
-      AWS_SECRET_ACCESS_KEY: 'aws-host-secret',
-    }).join(' ')
-    expect(joined).not.toContain('host-secret')
-  })
-
   test('omits CLAUDE_CODE_ENTRYPOINT when the SDK did not set it', () => {
-    expect(envOf(run({}))).not.toHaveProperty('CLAUDE_CODE_ENTRYPOINT')
+    expect(clientEnv({})).not.toHaveProperty('CLAUDE_CODE_ENTRYPOINT')
+    expect(envNamesOf(run({}))).not.toContain('CLAUDE_CODE_ENTRYPOINT')
   })
 })

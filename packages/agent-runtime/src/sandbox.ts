@@ -36,21 +36,47 @@ export interface Sandbox {
   readonly sweep: Effect.Effect<void, DockerCommandFailed>
 }
 
-export const dockerRunArgs = (
+// SDK はホストの環境変数を丸ごと渡してくるので、許可したものだけをホスト側で組み直す。
+const containerEnv = (
   config: DockerConfig,
   turn: TurnSandbox,
   options: SpawnOptions,
-): string[] => {
-  const { memory = '2g', cpus = '2', pids = 256 } = config.limits ?? {}
-  // SDK はホストの環境変数を丸ごと渡してくるので、許可したものだけをホスト側で組み直す。
-  const env: Record<string, string | undefined> = {
-    CLAUDE_CODE_ENTRYPOINT: options.env['CLAUDE_CODE_ENTRYPOINT'],
+): Record<string, string> => {
+  const entrypoint = options.env['CLAUDE_CODE_ENTRYPOINT']
+  return {
+    ...(entrypoint === undefined ? {} : { CLAUDE_CODE_ENTRYPOINT: entrypoint }),
     CLAUDE_CONFIG_DIR: '/cfg',
     CLAUDE_CODE_OAUTH_TOKEN: turn.token,
     ANTHROPIC_BASE_URL: config.anthropicBaseUrl,
     CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: '1',
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
   }
+}
+
+const dockerClientVariables = ['PATH', 'HOME', 'DOCKER_HOST', 'DOCKER_CONTEXT', 'DOCKER_CONFIG']
+
+/** docker の client process に渡す環境。値は argv に載せず（host の ps に見える）、ここに入れて `-e KEY` で受け渡す。 */
+export const dockerClientEnv = (
+  config: DockerConfig,
+  turn: TurnSandbox,
+  options: SpawnOptions,
+  hostEnv: NodeJS.ProcessEnv = process.env,
+): Record<string, string> => ({
+  ...Object.fromEntries(
+    dockerClientVariables.flatMap((key) => {
+      const value = hostEnv[key]
+      return value === undefined ? [] : [[key, value]]
+    }),
+  ),
+  ...containerEnv(config, turn, options),
+})
+
+export const dockerRunArgs = (
+  config: DockerConfig,
+  turn: TurnSandbox,
+  options: SpawnOptions,
+): string[] => {
+  const { memory = '2g', cpus = '2', pids = 256 } = config.limits ?? {}
   return [
     'run',
     '-i',
@@ -86,9 +112,7 @@ export const dockerRunArgs = (
     '/work',
     '--network',
     config.network,
-    ...Object.entries(env).flatMap(([key, value]) =>
-      value === undefined ? [] : ['-e', `${key}=${value}`],
-    ),
+    ...Object.keys(containerEnv(config, turn, options)).flatMap((key) => ['-e', key]),
     config.image,
     'claude',
     ...options.args,
@@ -104,6 +128,7 @@ const docker = (...args: string[]) =>
 export const dockerSandbox = (config: DockerConfig): Sandbox => ({
   spawn: (turn, options) =>
     spawn('docker', dockerRunArgs(config, turn, options), {
+      env: dockerClientEnv(config, turn, options),
       stdio: ['pipe', 'pipe', 'inherit'],
       signal: options.signal,
     }),
