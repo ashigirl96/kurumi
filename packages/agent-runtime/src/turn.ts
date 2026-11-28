@@ -578,15 +578,20 @@ const executeTurn = (
     )
 
     const { lastAssistantUuid, pushed } = yield* Ref.get(progress)
-    yield* closeTurn({
-      turnId,
-      sessionId: session.id,
-      lastAssistantUuid,
-      ...closing(turnId, session.id, end),
-      cancelledInbound: [...pushed].flatMap(([uuid, state]) => {
-        const id = inboundOfPush.get(uuid)
-        return state === 'cancelled' && id !== undefined ? [id] : []
-      }),
-    })
+    const closeAs = (ended: TurnEnd) =>
+      closeTurn({
+        turnId,
+        sessionId: session.id,
+        lastAssistantUuid,
+        ...closing(turnId, session.id, ended),
+        cancelledInbound: [...pushed].flatMap(([uuid, state]) => {
+          const id = inboundOfPush.get(uuid)
+          return state === 'cancelled' && id !== undefined ? [id] : []
+        }),
+      })
+    if (!(yield* closeAs(end))) {
+      yield* Effect.logError(`turn ${turnId} was not in a state to close as ${end._tag}`)
+      yield* closeAs({ _tag: 'Interrupted', reason: 'host_error' })
+    }
     yield* deps.notifyOutbound
   }).pipe(Effect.scoped)

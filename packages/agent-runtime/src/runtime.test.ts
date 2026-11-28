@@ -423,6 +423,35 @@ describe('Runtime', () => {
     expect(h.sandbox.disposed).toHaveLength(1)
   })
   describe('ターンの終わり方', () => {
+    test('閉じる時に DB のターンの状態が想定とずれていても、host_error の interrupted で閉じ直して知らせる', async () => {
+      const h = harness(() => ({
+        first: { steps: [holdStep], finish: { isError: true, terminalReason: 'api_error' } },
+      }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          const sql = yield* SqlClient.SqlClient
+          yield* runtime.receive(inbound('ずれる'))
+          yield* atHold(h)
+          // 承認の待ちが閉じて closing に移るのと、is_error の result が重なった状態を作る。
+          yield* sql`UPDATE turns SET state = 'closing'`
+          h.sandbox.gate(0).release('hold')
+          yield* eventually(
+            'turn ended',
+            Effect.map(allTurns, (rows) => rows[0]?.endedAt != null),
+          )
+          expect((yield* allTurns)[0]).toMatchObject({
+            state: 'interrupted',
+            endReason: 'host_error',
+          })
+          expect((yield* allInbound).map((m) => m.outcome)).toEqual(['interrupted'])
+          yield* deliveredRows(1)
+        }),
+      )
+      expect(h.delivered.map((m) => [m.kind, m.body])).toEqual([['notice', '作業を中断しました。']])
+    })
+
     test('result が is_error なら failed で、受信は failed、知らせが届く', async () => {
       const h = harness(() => ({
         first: { finish: { isError: true, terminalReason: 'api_error', text: '使われない' } },
