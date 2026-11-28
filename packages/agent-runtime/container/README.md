@@ -10,4 +10,4 @@ docker build -t kurumi-agent:sdk-0.3.332 packages/agent-runtime/container
 
 SDK の版を上げるときは、`Dockerfile` の版、タグ、root の `package.json` の catalog を一緒に変える。
 
-確認は Docker Desktop for Mac（arm64）だけで行った。Linux の本番機（amd64 を含む）では確かめていない。
+確認は Docker Desktop for Mac（arm64）だけで行った。Linux の本番機（amd64 を含む）では確かめていない。本物での確認の流し方は `src/real/README.md`、Linux での隔離の確認の手順は `docs/linux-isolation-check.md`。
