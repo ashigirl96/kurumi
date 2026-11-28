@@ -15,6 +15,10 @@ export const Step = z.discriminatedUnion('kind', [
     output: z.string().default(''),
     /** 組み込みツールが動いた印。作業ディレクトリからの相対 path に書く */
     writes: z.object({ path: z.string(), content: z.string() }).optional(),
+    /** `tool_use` の id。同じ id で 2 度呼ぶときに決める。省略すると乱数 */
+    id: z.string().optional(),
+    /** MCP の呼び出しから `_meta` を落とす */
+    dropMeta: z.boolean().default(false),
   }),
   /** `<signalDir>/<name>.reached` を作り、`<name>.go` が現れるまで止まる */
   z.object({ kind: z.literal('park'), name: z.string() }),
@@ -207,6 +211,7 @@ const callMcpTool = async (
   name: string,
   input: Record<string, unknown>,
   toolUseId: string,
+  dropMeta: boolean,
   signal: AbortSignal,
 ) => {
   const [, server, ...tool] = name.split('__')
@@ -220,7 +225,7 @@ const callMcpTool = async (
         params: {
           name: tool.join('__'),
           arguments: input,
-          _meta: { 'claudecode/toolUseId': toolUseId, progressToken: id },
+          ...(dropMeta ? {} : { _meta: { 'claudecode/toolUseId': toolUseId, progressToken: id } }),
         },
         jsonrpc: '2.0',
         id,
@@ -268,7 +273,7 @@ const runTool = async (
   step: Extract<z.output<typeof Step>, { kind: 'tool' }>,
   signal: AbortSignal,
 ) => {
-  const toolUseId = `toolu_${crypto.randomUUID().replaceAll('-', '')}`
+  const toolUseId = step.id ?? `toolu_${crypto.randomUUID().replaceAll('-', '')}`
   state.currentToolUseId = toolUseId
   assistant([
     {
@@ -292,7 +297,7 @@ const runTool = async (
     return toolResult(toolUseId, 'The PreToolUse hook denied this tool use.', true, meta)
   }
   if (step.name.startsWith('mcp__')) {
-    const result = await callMcpTool(step.name, step.input, toolUseId, signal)
+    const result = await callMcpTool(step.name, step.input, toolUseId, step.dropMeta, signal)
     state.currentToolUseId = undefined
     return toolResult(toolUseId, result?.content ?? [], result?.isError ?? false, meta)
   }

@@ -265,6 +265,36 @@ describe('fake CLI over the real SDK', () => {
     ])
   })
 
+  test('lets the script choose the tool_use id and drop _meta from MCP calls', async () => {
+    const metas: unknown[] = []
+    const server = createSdkMcpServer({
+      name: 'kurumi',
+      tools: [
+        tool('send_message', 'send', { text: z.string() }, async (_args, extra) => {
+          metas.push(MetaOf.parse(extra)['_meta'])
+          return { content: [{ type: 'text', text: 'sent' }] }
+        }),
+      ],
+    })
+    const send = { kind: 'tool', name: 'mcp__kurumi__send_message', input: { text: 'p' } } as const
+    const sandbox = one({
+      steps: [
+        { ...send, id: 'toolu_same' },
+        { ...send, id: 'toolu_same' },
+        { ...send, dropMeta: true },
+      ],
+    })
+    const s = open(sandbox, { mcpServers: { kurumi: server } })
+    s.push('go')
+    await s.waitFor(isResult)
+    expect(toolUseIds(s).slice(0, 2)).toEqual(['toolu_same', 'toolu_same'])
+    expect(metas).toMatchObject([
+      { 'claudecode/toolUseId': 'toolu_same' },
+      { 'claudecode/toolUseId': 'toolu_same' },
+      undefined,
+    ])
+  })
+
   describe('priority: next', () => {
     test('answers a pushed message in a separate result and completes its lifecycle', async () => {
       const { sandbox, s } = scenario()
