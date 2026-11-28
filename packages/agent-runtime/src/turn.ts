@@ -141,6 +141,7 @@ const SdkOutput = z.union([
     is_error: z.boolean(),
     result: z.string().optional(),
     terminal_reason: z.string().optional(),
+    errors: z.array(z.string()).optional(),
   }),
   z.object({
     type: z.literal('command_lifecycle'),
@@ -459,12 +460,12 @@ const executeTurn = (
               : { type: 'lifecycle', uuid: m.command_uuid, state: m.state }
         const next = yield* Ref.updateAndGet(progress, (p) => advance(p, event))
         if (event.type === 'result') {
-          if (event.isError) {
+          if (m.type === 'result' && m.is_error) {
             yield* Ref.update(progress, (p) => ({ ...p, phase: 'closing' as const }))
-            return {
-              _tag: 'Failed',
-              terminalReason: m.type === 'result' ? (m.terminal_reason ?? null) : null,
-            } satisfies TurnEnd
+            // 照合の後に会話記録が消えると、CLI は resume 先が無いとこの文で知らせる。
+            return m.errors?.some((e) => e.startsWith('No conversation found'))
+              ? ({ _tag: 'Interrupted', reason: 'resume_unreadable' } satisfies TurnEnd)
+              : ({ _tag: 'Failed', terminalReason: m.terminal_reason ?? null } satisfies TurnEnd)
           }
           if (event.text !== '') {
             yield* insertOutbound({

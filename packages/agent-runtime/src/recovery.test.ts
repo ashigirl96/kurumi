@@ -202,6 +202,40 @@ describe('resume の照合と /new', () => {
     })
   }
 
+  test('照合の後に会話記録が消え、CLI が会話を見つけられなかったら、照合の失敗と同じく lost にして /new を案内する', async () => {
+    let configDir: string | undefined
+    const h = harness(() => say('答え'), {
+      credentialGateway: {
+        register: () =>
+          Effect.sync(() => {
+            if (configDir) rmSync(join(configDir, 'projects'), { recursive: true })
+          }),
+      },
+    })
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        yield* runtime.receive(inbound('a'))
+        yield* eventually('first completed', turnsEnded(1))
+        configDir = (yield* allSessions)[0]!.configDir
+        yield* runtime.receive(inbound('b'))
+        yield* eventually(
+          'second ended',
+          Effect.map(allTurns, (rows) => rows[1]?.endedAt != null),
+        )
+        expect((yield* allTurns)[1]).toMatchObject({
+          state: 'interrupted',
+          endReason: 'resume_unreadable',
+        })
+        expect((yield* allSessions)[0]?.status).toBe('lost')
+        yield* deliveredCount(2)
+        expect(h.delivered.at(-1)?.body).toContain('/new')
+      }),
+    )
+    expect(h.sandbox.spawns.map((s) => s.resume)).toEqual([false, true])
+  })
+
   test('CLI が最初の入力を読む前に中断されたターンがあっても、照合は通り resume で続く', async () => {
     const h = harness((n) => say(n === 0 ? '一つ目の答え' : '続きの答え'))
     await run(
