@@ -5,15 +5,19 @@
   "exports": {
     "./schema": "./src/schema.ts",
     "./store": "./src/store.ts",
-    "./migrations": "./src/migrations.ts"
+    "./migrations": "./src/migrations.ts",
+    "./sandbox": "./src/sandbox.ts",
+    "./runtime": "./src/runtime.ts"
   },
   "scripts": {
     "generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@effect/sql-sqlite-bun": "catalog:",
     "drizzle-orm": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "drizzle-kit": "catalog:"

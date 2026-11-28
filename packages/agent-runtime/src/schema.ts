@@ -6,6 +6,7 @@ import {
   sqliteTable,
   text,
   unique,
+  uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 import { Brand } from 'effect'
 
@@ -103,6 +104,7 @@ export const sessions = sqliteTable(
   'sessions',
   {
     id: text().primaryKey(),
+    channel: text().notNull(),
     conversation: text().notNull(),
     agent: text().notNull(),
     claudeSessionId: text('claude_session_id'),
@@ -110,5 +112,10 @@ export const sessions = sqliteTable(
     workspaceDir: text('workspace_dir').notNull(),
     status: text({ enum: sessionStatuses }).notNull(),
   },
-  (t) => [oneOf('sessions_status_check', t.status, sessionStatuses)],
+  (t) => [
+    oneOf('sessions_status_check', t.status, sessionStatuses),
+    uniqueIndex('sessions_active_channel_conversation')
+      .on(t.channel, t.conversation)
+      .where(sql`${t.status} = 'active'`),
+  ],
 )
