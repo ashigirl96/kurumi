@@ -70,7 +70,7 @@ export type TurnEvent =
       readonly state: 'queued' | 'started' | 'completed' | 'cancelled'
     }
   | { readonly type: 'assistant'; readonly uuid: string }
-  | { readonly type: 'result'; readonly isError: boolean; readonly text: string }
+  | { readonly type: 'result'; readonly text: string }
   | { readonly type: 'approval-opened' }
   | { readonly type: 'approval-closed' }
 
@@ -456,7 +456,7 @@ const executeTurn = (
           m.type === 'assistant'
             ? { type: 'assistant', uuid: m.uuid }
             : m.type === 'result'
-              ? { type: 'result', isError: m.is_error, text: m.result ?? '' }
+              ? { type: 'result', text: m.result ?? '' }
               : { type: 'lifecycle', uuid: m.command_uuid, state: m.state }
         const next = yield* Ref.updateAndGet(progress, (p) => advance(p, event))
         if (event.type === 'result') {
