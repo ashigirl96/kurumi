@@ -16,7 +16,7 @@ export type ApprovalRequest = {
   readonly sessionId: string
   readonly turnId: TurnId
   readonly toolName: string
-  /** 切らずに渡す */
+  /** 要約だけを見せると、見えない後ろの部分を承認させられるので、切らずに渡す */
   readonly input: unknown
   readonly expiresAt: Date
 }
