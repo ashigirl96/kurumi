@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": [
+    "**/*.md",
+    "docs/research/**",
+    "packages/*/migrations/**",
+    "apps/*/src/fixtures/*/migrations-*/**"
+  ],
+  "semi": false,
+  "singleQuote": true,
+  "sortImports": true
+}
