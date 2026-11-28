@@ -1,4 +1,4 @@
-import { Duration, Effect, Exit, Queue } from 'effect'
+import { Duration, Effect, Exit, Queue, Schedule } from 'effect'
 
 import type { TurnId } from './schema.ts'
 import { claimNextOutbound, markDelivered, releaseOutbound } from './store.ts'
@@ -39,7 +39,12 @@ export const makeOutbox = (
       const exit = yield* (
         deliver ? deliver(next) : Effect.fail(new Error(`unknown channel: ${next.channel}`))
       ).pipe(Effect.exit)
-      if (Exit.isSuccess(exit)) return yield* markDelivered(next.id)
+      // 届いた行を配達し直さないよう、記録だけをやり直す。
+      if (Exit.isSuccess(exit))
+        return yield* markDelivered(next.id).pipe(
+          Effect.tapError((error) => Effect.logWarning(`outbound ${next.id} not marked`, error)),
+          Effect.retry(Schedule.spaced(retryDelay)),
+        )
       yield* releaseOutbound(next.id)
       backoffUntil.set(next.sessionId, Date.now() + Duration.toMillis(retryDelay))
       return yield* Effect.logWarning(`outbound ${next.id} was not delivered`, exit.cause)

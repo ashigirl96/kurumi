@@ -285,6 +285,27 @@ describe('Runtime', () => {
     expect(succeeded).toEqual(['別の会話の答え', '途中経過', '最後の文'])
   })
 
+  test('配達の後に delivered を書けなくても、配達し直さず、書けるようになったら delivered になる', async () => {
+    const h = harness(() => say('一度だけ届く'))
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        const sql = yield* SqlClient.SqlClient
+        yield* sql`CREATE TRIGGER reject_delivered BEFORE UPDATE OF state ON outbound_messages WHEN NEW.state = 'delivered' BEGIN SELECT RAISE(ABORT, 'delivered write failed'); END`
+        yield* runtime.receive(inbound('届けて'))
+        yield* eventually(
+          'channel received',
+          Effect.sync(() => h.delivered.length === 1),
+        )
+        yield* Effect.sleep('200 millis')
+        yield* sql`DROP TRIGGER reject_delivered`
+        yield* deliveredRows(1)
+      }),
+    )
+    expect(h.delivered.map((m) => m.body)).toEqual(['一度だけ届く'])
+  })
+
   test('同じセッションの 2 つ目のターンは resume で起こされ、作業場所のファイルが残っている', async () => {
     const h = harness((n) =>
       n === 0
