@@ -150,8 +150,14 @@ const SdkOutput = z.union([
   }),
 ])
 
+// 利用者の文が / で始まっても、CLI のコマンドとして実行させず、エージェントへの文として渡す。
+const composed = (message: SDKUserMessage): SDKUserMessage => ({
+  ...message,
+  client_composed: true,
+})
+
 const userInput = (first: SDKUserMessage) => {
-  const queue = [first]
+  const queue = [composed(first)]
   let done = false
   let wake: (() => void) | undefined
   async function* iterable() {
@@ -166,7 +172,7 @@ const userInput = (first: SDKUserMessage) => {
   return {
     iterable: iterable(),
     push: (message: SDKUserMessage) => {
-      queue.push(message)
+      queue.push(composed(message))
       poke()
     },
     end: () => {

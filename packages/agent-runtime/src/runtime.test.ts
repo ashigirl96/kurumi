@@ -482,6 +482,41 @@ describe('Runtime', () => {
       expect(h.sandbox.alive()).toBe(0)
     })
 
+    test('利用者の文は、/ で始まっても CLI のコマンドにせず、最初の入力も押し込みも client_composed で渡す', async () => {
+      const h = harness(() => ({
+        first: { steps: [holdStep, { kind: 'say', text: '一つ目の答え' }] },
+        next: { steps: [{ kind: 'say', text: '二つ目の答え' }] },
+      }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('/help'))
+          yield* atHold(h)
+          yield* runtime.receive(inbound('/compact'))
+          h.sandbox.gate(0).release('hold')
+          yield* eventually('turn completed', turnsEnded(1))
+        }),
+      )
+      const users = h.sandbox
+        .received(0)
+        .filter(
+          (line) =>
+            typeof line === 'object' && line !== null && 'type' in line && line.type === 'user',
+        )
+      expect(users).toEqual([
+        expect.objectContaining({
+          client_composed: true,
+          message: expect.objectContaining({ content: '/help' }),
+        }),
+        expect.objectContaining({
+          client_composed: true,
+          priority: 'next',
+          message: expect.objectContaining({ content: '/compact' }),
+        }),
+      ])
+    })
+
     test('closing に入った後に届いた受信は押し込まれず、次のターンで答えられる', async () => {
       const h = harness(() => say('答え'))
       const hold = h.sandbox.holdDispose()
