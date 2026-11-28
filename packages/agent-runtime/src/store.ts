@@ -59,7 +59,6 @@ export type NewToolCall = Pick<
   'toolUseId' | 'turnId' | 'toolName' | 'inputSummary'
 >
 
-/** 新しく書けたときだけ、その行を返す */
 export const storeInbound = (
   message: NewInboundMessage &
     Partial<Pick<typeof inboundMessages.$inferInsert, 'outcome' | 'answeredAt'>>,
@@ -77,7 +76,6 @@ export const storeInbound = (
 export const saveInbound = (message: NewInboundMessage) =>
   Effect.map(storeInbound(message), (row) => row !== undefined)
 
-/** 動いている（running の）ターンにだけ、まだ誰にも割り当てられていない受信を割り当てる。 */
 export const assignInboundToRunningTurn = (inboundId: InboundMessageId, turnId: TurnId) =>
   Effect.gen(function* () {
     const db = yield* AgentRuntimeDb
@@ -236,7 +234,6 @@ export type PreviousInterruption = {
   readonly delivered: readonly string[]
 }
 
-/** 同じセッションで `beforeTurnId` の前の最新のターンが interrupted なら、そのターンで起きたことを返す */
 export const findPreviousInterruption = (sessionId: string, beforeTurnId: TurnId) =>
   Effect.gen(function* () {
     const db = yield* AgentRuntimeDb
