@@ -3,9 +3,17 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./schema": "./src/schema.ts",
     "./migrations": "./src/migrations.ts"
   },
   "scripts": {
     "generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "drizzle-orm": "catalog:",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "drizzle-kit": "catalog:"
   }
 }
