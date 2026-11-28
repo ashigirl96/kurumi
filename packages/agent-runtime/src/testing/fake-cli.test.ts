@@ -38,7 +38,7 @@ const makeTurn = (): TurnSandbox => {
   }
 }
 
-// SDK の型定義に cancelQueued が載っていないので、Reflect.apply の any を zod で受けるこの 1 か所だけで扱う。
+// SDK の型定義に cancelQueued が載っていないので、Reflect.apply の any を zod で受ける。
 const InterruptReceipt = z.object({
   cancelled: z.array(z.string()).optional(),
   still_queued: z.array(z.string()).optional(),
