@@ -1,0 +1,30 @@
+{
+  "name": "kurumi",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "@effect/sql-sqlite-bun": "4.1.7",
+      "drizzle-kit": "1.0.0-rc.6",
+      "drizzle-orm": "1.0.0-rc.6",
+      "effect": "4.1.7"
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "generate": "bun run --filter './packages/*' generate",
+    "check": "oxlint --no-error-on-unmatched-pattern --report-unused-disable-directives-severity=error && oxfmt --check && tsc --noEmit && bun run test",
+    "test": "bun test --pass-with-no-tests ./apps ./packages"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.3",
+    "oxfmt": "^0.71.0",
+    "oxlint": "^1.86.0",
+    "oxlint-tsgolint": "^7.0.2003",
+    "typescript": "^7.0.2"
+  },
+  "packageManager": "bun@1.4.4"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@kurumi/agent-runtime",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./migrations": "./src/migrations.ts"
+  },
+  "scripts": {
+    "generate": "drizzle-kit generate"
+  }
+}

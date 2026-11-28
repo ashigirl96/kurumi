@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import"],
+  "options": { "typeAware": true },
+  "ignorePatterns": ["docs/research/**", "packages/*/migrations/**"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    // 指定しないと oxlint は import type だけでできた循環を見逃す。
+    "import/no-cycle": ["error", { "ignoreTypes": false }]
+  }
+}
