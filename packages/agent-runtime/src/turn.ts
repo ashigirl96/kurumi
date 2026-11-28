@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { type GateDeps, type Policy, forbiddenTools, makeGate } from './gate.ts'
 import type { Sandbox, TurnSandbox } from './sandbox.ts'
-import type { TurnId } from './schema.ts'
+import type { InboundMessageId, TurnId } from './schema.ts'
 import { sendMessageServer } from './send-tool.ts'
 import {
   type AgentRuntimeDb,
@@ -408,6 +408,7 @@ const executeTurn = (
         ),
       )
 
+    const inboundOfPush = new Map<string, InboundMessageId>()
     control.accept = (row) =>
       Effect.gen(function* () {
         if (yield* Deferred.isDone(control.stop)) return false
@@ -426,6 +427,7 @@ const executeTurn = (
           yield* withdraw
           return false
         }
+        inboundOfPush.set(uuid, row.id)
         input.push({
           type: 'user',
           message: { role: 'user', content: row.body },
@@ -575,12 +577,16 @@ const executeTurn = (
       }),
     )
 
-    const { lastAssistantUuid } = yield* Ref.get(progress)
+    const { lastAssistantUuid, pushed } = yield* Ref.get(progress)
     yield* closeTurn({
       turnId,
       sessionId: session.id,
       lastAssistantUuid,
       ...closing(turnId, session.id, end),
+      cancelledInbound: [...pushed].flatMap(([uuid, state]) => {
+        const id = inboundOfPush.get(uuid)
+        return state === 'cancelled' && id !== undefined ? [id] : []
+      }),
     })
     yield* deps.notifyOutbound
   }).pipe(Effect.scoped)

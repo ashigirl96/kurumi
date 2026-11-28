@@ -349,6 +349,8 @@ export type TurnClosing = {
   readonly lastAssistantUuid: string | null
   readonly inboundOutcome: 'answered' | 'failed' | 'interrupted'
   readonly notice: { readonly idempotencyKey: string; readonly body: string } | null
+  /** CLI が取り消した押し込みの受信。ターンの終わり方によらず interrupted にする */
+  readonly cancelledInbound?: readonly InboundMessageId[]
   /** 同じトランザクションでセッションを lost にする */
   readonly lostSession?: true
 }
@@ -383,6 +385,12 @@ export const closeTurn = (closing: TurnClosing) =>
             answeredAt: closing.inboundOutcome === 'answered' ? now : null,
           })
           .where(eq(inboundMessages.turnId, closing.turnId))
+        if (closing.cancelledInbound?.length) {
+          yield* tx
+            .update(inboundMessages)
+            .set({ outcome: 'interrupted', answeredAt: null })
+            .where(inArray(inboundMessages.id, [...closing.cancelledInbound]))
+        }
         if (closing.lostSession) {
           yield* tx
             .update(sessions)

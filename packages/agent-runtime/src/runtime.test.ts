@@ -652,6 +652,35 @@ describe('Runtime', () => {
       expect(h.delivered.map((m) => m.body)).toEqual(['二つ目の答え'])
     })
 
+    test('CLI が押し込みを cancelled にしたままターンが完了したら、その受信は答え済みでなく interrupted になる', async () => {
+      const h = harness(() => ({
+        first: {
+          steps: [holdStep, { kind: 'cancelQueued' }, { kind: 'say', text: '一つ目の答え' }],
+        },
+      }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('最初'))
+          yield* atHold(h)
+          expect(yield* runtime.receive(inbound('取り消される追加'))).toBe('stored')
+          yield* eventually(
+            'push reached the CLI',
+            Effect.sync(() => JSON.stringify(h.sandbox.received(0)).includes('取り消される追加')),
+          )
+          h.sandbox.gate(0).release('hold')
+          yield* eventually('turn completed', turnsEnded(1))
+          expect(
+            (yield* allInbound).map((m) => [m.body, m.outcome, m.answeredAt instanceof Date]),
+          ).toEqual([
+            ['最初', 'answered', true],
+            ['取り消される追加', 'interrupted', false],
+          ])
+        }),
+      )
+    })
+
     test('/stop は押し込みを cancelled にして実行させず、ターンも受信も interrupted になる', async () => {
       const h = harness(() => ({
         first: {

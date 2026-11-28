@@ -16,6 +16,7 @@ export const Step = z.discriminatedUnion('kind', [
   }),
   z.object({ kind: z.literal('park'), name: z.string() }),
   z.object({ kind: z.literal('hang') }),
+  z.object({ kind: z.literal('cancelQueued') }),
   z.object({ kind: z.literal('crash'), code: z.number() }),
 ])
 export type Step = z.input<typeof Step>
@@ -324,6 +325,8 @@ const runSteps = async (steps: z.output<typeof Step>[], signal: AbortSignal) => 
     } else if (step.kind === 'park') {
       writeFileSync(join(signalDir, `${step.name}.reached`), '')
       await waitForFile(join(signalDir, `${step.name}.go`), signal)
+    } else if (step.kind === 'cancelQueued') {
+      for (const u of state.queue.splice(0)) lifecycle(u.uuid, 'cancelled')
     } else if (step.kind === 'hang') {
       await new Promise<never>((_, reject) =>
         signal.addEventListener('abort', () => reject(new Aborted()), { once: true }),
