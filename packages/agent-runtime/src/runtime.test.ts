@@ -482,8 +482,11 @@ describe('Runtime', () => {
           expect(yield* runtime.receive(inbound(' /stop\n'))).toBe('stop')
           yield* eventually('interrupted', turnEnded('interrupted'))
           expect((yield* allTurns)[0]?.endReason).toBe('stopped')
-          expect((yield* allInbound).map((m) => m.outcome)).toEqual(['interrupted', 'interrupted'])
-          expect(yield* allInbound).toHaveLength(2)
+          expect((yield* allInbound).map((m) => [m.body, m.outcome, m.turnId !== null])).toEqual([
+            ['長い作業', 'interrupted', true],
+            ['追加の指示', 'interrupted', true],
+            [' /stop\n', 'answered', false],
+          ])
           yield* eventually(
             'notice delivered',
             Effect.map(allOutbound, (rows) => rows.length === 1 && rows[0]?.state === 'delivered'),
@@ -521,14 +524,38 @@ describe('Runtime', () => {
           expect(rows.map((m) => [m.body, m.outcome])).toEqual([
             ['最初', 'answered'],
             ['次のターンを待つ古い指示', 'interrupted'],
+            ['/stop', 'answered'],
             ['/stop のあとの指示', 'answered'],
           ])
           expect(rows[1]?.turnId).toBeNull()
+          expect(rows[2]?.turnId).toBeNull()
           expect(yield* allTurns).toHaveLength(2)
         }),
       )
       expect(h.sandbox.spawns.map((s) => s.resume)).toEqual([false, true])
       expect(h.sandbox.alive()).toBe(0)
+    })
+
+    test('再配達された /stop は duplicate で、後から始まったターンを止めない', async () => {
+      const h = harness((n) => (n === 0 ? say('答え') : parked()))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          const stop = inbound('/stop')
+          yield* runtime.receive(inbound('最初'))
+          yield* eventually('first completed', turnsEnded(1))
+          expect(yield* runtime.receive(stop)).toBe('stop')
+          yield* runtime.receive(inbound('新しい作業'))
+          yield* Effect.promise(() => h.sandbox.gate(1).reached('hold'))
+          const replayed = yield* runtime.receive(stop)
+          yield* Effect.sleep('200 millis')
+          expect((yield* allTurns)[1]?.state).toBe('running')
+          expect(replayed).toBe('duplicate')
+          h.sandbox.gate(1).release('hold')
+          yield* eventually('second completed', turnsEnded(2))
+        }),
+      )
     })
 
     test('制限時間を超えたターンは /stop と同じ結果で、end_reason は timeout', async () => {

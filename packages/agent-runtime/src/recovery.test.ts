@@ -130,6 +130,17 @@ const dropLines = (containing: string) => (configDir: string) => {
     .filter((line) => !line.includes(containing))
   writeFileSync(file, kept.join('\n'))
 }
+const loseCurrent = (body: string) =>
+  Effect.gen(function* () {
+    const runtime = yield* Runtime
+    const active = (yield* allSessions).find((s) => s.status === 'active')!
+    rmSync(join(active.configDir, 'projects'), { recursive: true })
+    yield* runtime.receive(inbound(body))
+    yield* eventually(
+      'lost',
+      Effect.map(allSessions, (rows) => rows.every((s) => s.status === 'lost')),
+    )
+  })
 describe('resume の照合と /new', () => {
   const damages: [string, (configDir: string, h: { prompt: string; assistant: string }) => void][] =
     [
@@ -216,7 +227,7 @@ describe('resume の照合と /new', () => {
     expect(h.sandbox.spawns.map((s) => s.resume)).toEqual([false, true])
   })
 
-  test('/new は lost でなければ何もせず、受信としても保存しない', async () => {
+  test('/new は lost でなければ何もせず、ターンにも渡らない', async () => {
     const h = harness(() => say('答え'))
     await run(
       h,
@@ -225,8 +236,37 @@ describe('resume の照合と /new', () => {
         yield* runtime.receive(inbound('a'))
         yield* eventually('first completed', turnsEnded(1))
         expect(yield* runtime.receive(inbound('/new'))).toBe('new-session')
+        yield* Effect.sleep('200 millis')
         expect(yield* allSessions).toHaveLength(1)
-        expect(yield* allInbound).toHaveLength(1)
+        expect(yield* allTurns).toHaveLength(1)
+        expect((yield* allInbound).map((m) => [m.body, m.outcome, m.turnId !== null])).toEqual([
+          ['a', 'answered', true],
+          ['/new', 'answered', false],
+        ])
+      }),
+    )
+  })
+
+  test('再配達された /new は duplicate で、新しいセッションがまた lost になっても、もう 1 つ作らない', async () => {
+    const h = harness(() => say('答え'))
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        const renew = inbound('/new')
+        yield* runtime.receive(inbound('a'))
+        yield* eventually('first completed', turnsEnded(1))
+        yield* loseCurrent('b')
+        expect(yield* runtime.receive(renew)).toBe('new-session')
+        yield* runtime.receive(inbound('c'))
+        yield* eventually(
+          'c answered',
+          Effect.map(allInbound, (rows) => rows.at(-1)?.outcome === 'answered'),
+        )
+        yield* loseCurrent('d')
+        const replayed = yield* runtime.receive(renew)
+        expect(yield* allSessions).toHaveLength(2)
+        expect(replayed).toBe('duplicate')
       }),
     )
   })

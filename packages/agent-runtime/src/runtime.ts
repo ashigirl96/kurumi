@@ -191,8 +191,17 @@ const makeRuntime = (config: RuntimeConfig) =>
 
     const receive = (message: InboundInput) =>
       Effect.gen(function* () {
-        if (message.body.trim() === '/stop') return yield* stop(message)
-        if (message.body.trim() === '/new') return yield* newSession(message)
+        const command = message.body.trim()
+        if (command === '/stop' || command === '/new') {
+          // 命令の行は答え済みで保存し、ターンに渡さず、再配達を重複として見分ける。
+          const fresh = yield* storeInbound({
+            ...message,
+            outcome: 'answered',
+            answeredAt: new Date(),
+          })
+          if (!fresh) return 'duplicate' as const
+          return command === '/stop' ? yield* stop(message) : yield* newSession(message)
+        }
         const session = yield* ensureSession(message.channel, message.conversation)
         const stored = yield* storeInbound(message)
         const pushed = stored

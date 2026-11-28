@@ -60,7 +60,10 @@ export type NewToolCall = Pick<
 >
 
 /** 新しく書けたときだけ、その行を返す */
-export const storeInbound = (message: NewInboundMessage) =>
+export const storeInbound = (
+  message: NewInboundMessage &
+    Partial<Pick<typeof inboundMessages.$inferInsert, 'outcome' | 'answeredAt'>>,
+) =>
   Effect.gen(function* () {
     const db = yield* AgentRuntimeDb
     const stored = yield* db
