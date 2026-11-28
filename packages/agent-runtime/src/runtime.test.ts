@@ -65,6 +65,22 @@ const hanging = () => {
   }
 }
 
+const pendingRegister = () => {
+  const entered = Promise.withResolvers<void>()
+  const released = Promise.withResolvers<void>()
+  return {
+    entered,
+    released,
+    credentialGateway: {
+      register: () =>
+        Effect.promise(() => {
+          entered.resolve()
+          return released.promise
+        }),
+    },
+  }
+}
+
 const send = (text: string, extra: { id?: string; dropMeta?: boolean } = {}) =>
   ({
     kind: 'tool',
@@ -591,6 +607,36 @@ describe('Runtime', () => {
       expect(h.delivered.map((m) => m.kind)).toEqual(['notice'])
       expect(h.sandbox.spawns).toHaveLength(1)
       expect(h.sandbox.alive()).toBe(0)
+    })
+
+    describe('Credential Gateway の登録が戻らないとき', () => {
+      for (const [label, endReason] of [
+        ['/stop', 'stopped'],
+        ['制限時間', 'timeout'],
+      ] as const) {
+        test(`${label} で interrupted になり、コンテナを起こさない`, async () => {
+          const { entered, released, credentialGateway } = pendingRegister()
+          const h = harness(() => parked(), { credentialGateway, turnTimeout: '300 millis' })
+          try {
+            await run(
+              h,
+              Effect.gen(function* () {
+                const runtime = yield* Runtime
+                yield* runtime.receive(inbound('作業'))
+                yield* Effect.promise(() => entered.promise)
+                if (endReason === 'stopped') yield* runtime.receive(inbound('/stop'))
+                yield* eventually('interrupted', turnEnded('interrupted'))
+                expect((yield* allTurns)[0]?.endReason).toBe(endReason)
+                released.resolve()
+                yield* Effect.sleep('200 millis')
+                expect(h.sandbox.spawns).toHaveLength(0)
+              }),
+            )
+          } finally {
+            released.resolve()
+          }
+        })
+      }
     })
   })
   describe('ツールの関所', () => {

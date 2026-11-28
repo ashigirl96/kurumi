@@ -284,6 +284,40 @@ export const runTurn = (
     )
   })
 
+type Prepared =
+  | { readonly _tag: 'Ready'; readonly previous: PreviousInterruption | undefined }
+  | TurnEnd
+
+const prepare = (
+  deps: TurnDeps,
+  session: SessionRow,
+  turnId: TurnId,
+  token: string,
+): Effect.Effect<Prepared, DbError, AgentRuntimeDb> =>
+  Effect.gen(function* () {
+    if (session.claudeSessionId !== null) {
+      const last = yield* findLastCompletedTurn(session.id, turnId)
+      const required = [last?.promptUuid, last?.lastAssistantUuid].filter(
+        (uuid): uuid is string => typeof uuid === 'string',
+      )
+      const readable = yield* Effect.promise(() =>
+        transcriptHolds(session.configDir, session.claudeSessionId!, required),
+      )
+      if (!readable) return { _tag: 'Interrupted', reason: 'resume_unreadable' }
+    }
+    const previous = yield* findPreviousInterruption(session.id, turnId)
+    yield* (
+      deps.register?.({
+        token,
+        channel: session.channel,
+        conversation: session.conversation,
+        sessionId: session.id,
+        turnId,
+      }) ?? Effect.void
+    )
+    return { _tag: 'Ready', previous }
+  })
+
 const executeTurn = (
   deps: TurnDeps,
   session: SessionRow,
@@ -294,27 +328,10 @@ const executeTurn = (
   Effect.gen(function* () {
     const promptUuid = crypto.randomUUID()
     yield* transitionTurn(turnId, 'queued', 'running', { startedAt: new Date(), promptUuid })
-
-    if (session.claudeSessionId !== null) {
-      const last = yield* findLastCompletedTurn(session.id, turnId)
-      const required = [last?.promptUuid, last?.lastAssistantUuid].filter(
-        (uuid): uuid is string => typeof uuid === 'string',
-      )
-      const readable = yield* Effect.promise(() =>
-        transcriptHolds(session.configDir, session.claudeSessionId!, required),
-      )
-      if (!readable) {
-        yield* closeTurn({
-          turnId,
-          sessionId: session.id,
-          lastAssistantUuid: null,
-          ...closing(turnId, session.id, { _tag: 'Interrupted', reason: 'resume_unreadable' }),
-        })
-        yield* deps.notifyOutbound
-        return
-      }
-    }
-    const previous = yield* findPreviousInterruption(session.id, turnId)
+    yield* Effect.sleep(deps.turnTimeout).pipe(
+      Effect.andThen(Deferred.succeed(control.stop, 'timeout')),
+      Effect.forkScoped,
+    )
 
     const sandboxTurn: TurnSandbox = {
       name: `kurumi-turn-${crypto.randomUUID()}`,
@@ -322,6 +339,24 @@ const executeTurn = (
       workspaceDir: session.workspaceDir,
       token: `kurumi-fake-${crypto.randomUUID()}`,
     }
+    const prepared = yield* Effect.raceFirst(
+      prepare(deps, session, turnId, sandboxTurn.token),
+      Deferred.await(control.stop).pipe(
+        Effect.map((reason): Prepared => ({ _tag: 'Interrupted', reason })),
+      ),
+    )
+    if (prepared._tag !== 'Ready') {
+      yield* closeTurn({
+        turnId,
+        sessionId: session.id,
+        lastAssistantUuid: null,
+        ...closing(turnId, session.id, prepared),
+      })
+      yield* deps.notifyOutbound
+      return
+    }
+    const { previous } = prepared
+
     const progress = yield* Ref.make(initialProgress)
     const run = Effect.runPromiseWith(yield* Effect.context<AgentRuntimeDb>())
     const turnOver = yield* Deferred.make<void>()
@@ -451,15 +486,6 @@ const executeTurn = (
 
     const end = yield* Effect.scoped(
       Effect.gen(function* () {
-        yield* (
-          deps.register?.({
-            token: sandboxTurn.token,
-            channel: session.channel,
-            conversation: session.conversation,
-            sessionId: session.id,
-            turnId,
-          }) ?? Effect.void
-        )
         const q = yield* Effect.acquireRelease(
           Effect.sync(() =>
             query({
@@ -500,10 +526,6 @@ const executeTurn = (
             ),
         )
         yield* Effect.addFinalizer(() => Deferred.succeed(turnOver, undefined))
-        yield* Effect.sleep(deps.turnTimeout).pipe(
-          Effect.andThen(Deferred.succeed(control.stop, 'timeout')),
-          Effect.forkScoped,
-        )
         const read = Stream.fromAsyncIterable(q, (cause) => new SdkStreamFailed({ cause })).pipe(
           Stream.mapEffect(handle),
           Stream.filter((result): result is TurnEnd => result !== undefined),
@@ -543,4 +565,4 @@ const executeTurn = (
       ...closing(turnId, session.id, end),
     })
     yield* deps.notifyOutbound
-  })
+  }).pipe(Effect.scoped)
