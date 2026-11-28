@@ -191,6 +191,31 @@ describe('resume の照合と /new', () => {
     })
   }
 
+  test('CLI が最初の入力を読む前に中断されたターンがあっても、照合は通り resume で続く', async () => {
+    const h = harness((n) => say(n === 0 ? '一つ目の答え' : '続きの答え'))
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        yield* runtime.receive(inbound('a'))
+        yield* eventually('first completed', turnsEnded(1))
+        const [session] = yield* allSessions
+        const unseen = yield* storeInbound(inbound('CLI に届く前に落ちた'))
+        const turnId = yield* createTurn({ sessionId: session!.id, inboundIds: [unseen!.id] })
+        yield* transitionTurn(turnId, 'queued', 'running', { promptUuid: 'never-in-transcript' })
+        yield* transitionTurn(turnId, 'running', 'interrupted')
+
+        yield* runtime.receive(inbound('b'))
+        yield* eventually(
+          'b answered',
+          Effect.map(allInbound, (rows) => rows.at(-1)?.outcome === 'answered'),
+        )
+        expect((yield* allSessions).map((s) => s.status)).toEqual(['active'])
+      }),
+    )
+    expect(h.sandbox.spawns.map((s) => s.resume)).toEqual([false, true])
+  })
+
   test('/new は lost でなければ何もせず、受信としても保存しない', async () => {
     const h = harness(() => say('答え'))
     await run(

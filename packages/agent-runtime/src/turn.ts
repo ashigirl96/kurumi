@@ -15,7 +15,7 @@ import {
   assignInboundToRunningTurn,
   closeTurn,
   createTurn,
-  findLastPromptedTurn,
+  findLastCompletedTurn,
   findPreviousInterruption,
   insertOutbound,
   setClaudeSessionId,
@@ -284,16 +284,10 @@ const executeTurn = (
     yield* transitionTurn(turnId, 'queued', 'running', { startedAt: new Date(), promptUuid })
 
     if (session.claudeSessionId !== null) {
-      const last = yield* findLastPromptedTurn(session.id, turnId)
-      const required =
-        last === undefined
-          ? []
-          : [
-              ...(last.promptUuid === null ? [] : [last.promptUuid]),
-              ...(last.state === 'completed' && last.lastAssistantUuid !== null
-                ? [last.lastAssistantUuid]
-                : []),
-            ]
+      const last = yield* findLastCompletedTurn(session.id, turnId)
+      const required = [last?.promptUuid, last?.lastAssistantUuid].filter(
+        (uuid): uuid is string => typeof uuid === 'string',
+      )
       const readable = yield* Effect.promise(() =>
         transcriptHolds(session.configDir, session.claudeSessionId!, required),
       )

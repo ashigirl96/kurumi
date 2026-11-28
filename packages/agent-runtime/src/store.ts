@@ -1,16 +1,4 @@
-import {
-  and,
-  asc,
-  defineRelations,
-  desc,
-  eq,
-  exists,
-  inArray,
-  isNotNull,
-  isNull,
-  lt,
-  ne,
-} from 'drizzle-orm'
+import { and, asc, defineRelations, desc, eq, exists, inArray, isNull, lt, ne } from 'drizzle-orm'
 import * as Drizzle from 'drizzle-orm/effect-sqlite-bun'
 import { Context, Data, Effect, Layer } from 'effect'
 
@@ -263,22 +251,18 @@ export const findPreviousInterruption = (sessionId: string, beforeTurnId: TurnId
     return { toolCalls: calls, delivered: sent.map((m) => m.body) } satisfies PreviousInterruption
   })
 
-/** `beforeTurnId` の前で、prompt_uuid を記録した最新のターン */
-export const findLastPromptedTurn = (sessionId: string, beforeTurnId: TurnId) =>
+/** `beforeTurnId` の前で completed になった最新のターン。中断されたターンは、CLI が入力を読む前に止まったことがあり、会話記録に残っているとは限らない。 */
+export const findLastCompletedTurn = (sessionId: string, beforeTurnId: TurnId) =>
   Effect.gen(function* () {
     const db = yield* AgentRuntimeDb
     const [row] = yield* db
-      .select({
-        promptUuid: turns.promptUuid,
-        state: turns.state,
-        lastAssistantUuid: turns.lastAssistantUuid,
-      })
+      .select({ promptUuid: turns.promptUuid, lastAssistantUuid: turns.lastAssistantUuid })
       .from(turns)
       .where(
         and(
           eq(turns.sessionId, sessionId),
           lt(turns.id, beforeTurnId),
-          isNotNull(turns.promptUuid),
+          eq(turns.state, 'completed'),
         ),
       )
       .orderBy(desc(turns.id))
