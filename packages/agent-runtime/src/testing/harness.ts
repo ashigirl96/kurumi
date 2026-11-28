@@ -125,3 +125,26 @@ export const turnsEnded = (count: number) =>
     allTurns,
     (rows) => rows.length === count && rows.every((t) => t.state === 'completed'),
   )
+
+/** 同じ DB に Runtime.layer を何度でも作る。`boot` に渡した処理ごとに Runtime を立ち上げ、終わると scope を閉じる */
+export const onSharedDb = <A, E>(
+  h: Harness,
+  body: (
+    boot: <A2, E2>(
+      effect: Effect.Effect<A2, E2, Runtime | AgentRuntimeDb | SqlClient.SqlClient>,
+    ) => Effect.Effect<A2, E2>,
+    db: Layer.Layer<AgentRuntimeDb | SqlClient.SqlClient>,
+  ) => Effect.Effect<A, E>,
+) =>
+  Effect.runPromise(
+    Effect.scoped(
+      Effect.gen(function* () {
+        const db = Layer.succeedContext(yield* Layer.build(testDbLayer))
+        return yield* body(
+          (effect) =>
+            effect.pipe(Effect.provide(Runtime.layer(h.config).pipe(Layer.provideMerge(db)))),
+          db,
+        )
+      }),
+    ),
+  )

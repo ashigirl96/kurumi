@@ -10,6 +10,7 @@ import {
   type ToolDecision,
 } from './gate.ts'
 import { type Deliver, type OutboundToDeliver, makeOutbox } from './outbound.ts'
+import { recover } from './recovery.ts'
 import type { Sandbox } from './sandbox.ts'
 import {
   AgentRuntimeDb,
@@ -79,7 +80,6 @@ const makeRuntime = (config: RuntimeConfig) =>
     const db = yield* AgentRuntimeDb
     const scope = yield* Effect.scope
     const outbox = yield* makeOutbox(config.channels, deliveryRetryDelay)
-    yield* outbox.run.pipe(Effect.provideService(AgentRuntimeDb, db), Effect.forkIn(scope))
 
     const turnSlots = yield* Semaphore.make(config.maxConcurrentTurns ?? 3)
     const sessionLocks = new Map<string, Semaphore.Semaphore>()
@@ -138,21 +138,26 @@ const makeRuntime = (config: RuntimeConfig) =>
         Effect.asVoid,
       )
 
+    const createSession = (channel: string, conversation: string) =>
+      Effect.gen(function* () {
+        const id = crypto.randomUUID()
+        const dir = join(config.dataDir, 'sessions', id)
+        yield* insertSession({
+          id,
+          channel,
+          conversation,
+          agent: config.agent,
+          configDir: join(dir, 'cfg'),
+          workspaceDir: join(dir, 'work'),
+          status: 'active',
+        })
+      })
+
     const ensureSession = (channel: string, conversation: string) =>
       Effect.gen(function* () {
         let session: SessionRow | undefined = yield* findSession(channel, conversation)
         if (!session) {
-          const id = crypto.randomUUID()
-          const dir = join(config.dataDir, 'sessions', id)
-          yield* insertSession({
-            id,
-            channel,
-            conversation,
-            agent: config.agent,
-            configDir: join(dir, 'cfg'),
-            workspaceDir: join(dir, 'work'),
-            status: 'active',
-          })
+          yield* createSession(channel, conversation)
           session = yield* findSession(channel, conversation)
         }
         const found = session!
@@ -161,6 +166,17 @@ const makeRuntime = (config: RuntimeConfig) =>
           await mkdir(found.workspaceDir, { recursive: true })
         })
         return found
+      })
+
+    const newSession = (message: InboundInput) =>
+      Effect.gen(function* () {
+        const current = yield* findSession(message.channel, message.conversation)
+        if (current?.status === 'lost') {
+          yield* createSession(message.channel, message.conversation)
+          const created = yield* ensureSession(message.channel, message.conversation)
+          yield* kick(created.id)
+        }
+        return 'new-session' as const
       })
 
     const stop = (message: InboundInput) =>
@@ -177,6 +193,7 @@ const makeRuntime = (config: RuntimeConfig) =>
     const receive = (message: InboundInput) =>
       Effect.gen(function* () {
         if (message.body.trim() === '/stop') return yield* stop(message)
+        if (message.body.trim() === '/new') return yield* newSession(message)
         // 先に session を作る。受信を書いたあとで失敗すると、再送の受信が重複になって起こされない。
         const session = yield* ensureSession(message.channel, message.conversation)
         const stored = yield* storeInbound(message)
@@ -194,6 +211,14 @@ const makeRuntime = (config: RuntimeConfig) =>
       const answer = approvals.get(id)
       return answer ? Deferred.succeed(answer, decision) : Effect.succeed(false)
     }
+
+    // 配達ループを起こす前に流し、前の起動で止まった送信を戻してから配達を始める。
+    const wakeSessions = yield* recover(config.sandbox).pipe(
+      Effect.provideService(AgentRuntimeDb, db),
+      Effect.orDie,
+    )
+    yield* outbox.run.pipe(Effect.provideService(AgentRuntimeDb, db), Effect.forkIn(scope))
+    for (const sessionId of wakeSessions) yield* kick(sessionId)
 
     return { receive, answerApproval } satisfies RuntimeApi
   })

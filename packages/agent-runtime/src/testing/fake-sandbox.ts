@@ -32,6 +32,8 @@ export type FakeSandbox = Sandbox & {
   /** 次の `dispose` を、`release` が呼ばれるまで子プロセスを殺す前で止める */
   holdDispose(): { entered: Promise<void>; release: () => void }
   alive(): number
+  /** `sweep` が呼ばれた回数 */
+  swept(): number
 }
 
 const exited = (child: ChildProcess) =>
@@ -44,6 +46,7 @@ export const fakeSandbox = (scriptFor: (n: number) => Script): FakeSandbox => {
   const children: { turn: TurnSandbox; child: ChildProcess }[] = []
   const spawns: FakeSandbox['spawns'] = []
   const disposed: TurnSandbox[] = []
+  let sweeps = 0
   let hold: { entered: () => void; released: Promise<void> } | undefined
 
   const dirOf = (n: number) => {
@@ -87,7 +90,9 @@ export const fakeSandbox = (scriptFor: (n: number) => Script): FakeSandbox => {
         for (const child of mine) child.kill('SIGKILL')
         await Promise.all(mine.map(exited))
       }),
-    sweep: Effect.void,
+    sweep: Effect.sync(() => {
+      sweeps++
+    }),
     gate: (n) => ({
       reached: async (name) => {
         const file = join(dirOf(n), `${name}.reached`)
@@ -116,6 +121,7 @@ export const fakeSandbox = (scriptFor: (n: number) => Script): FakeSandbox => {
         },
       }
     },
+    swept: () => sweeps,
     alive: () =>
       children.filter(({ child }) => child.exitCode === null && child.signalCode === null).length,
   }

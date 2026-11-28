@@ -15,10 +15,14 @@ import {
   assignInboundToRunningTurn,
   closeTurn,
   createTurn,
+  findLastPromptedTurn,
+  findPreviousInterruption,
   insertOutbound,
   setClaudeSessionId,
+  type PreviousInterruption,
   transitionTurn,
 } from './store.ts'
+import { transcriptHolds } from './transcript.ts'
 
 export type TurnGrant = {
   readonly token: string
@@ -80,7 +84,7 @@ export type TurnEnd =
   | { readonly _tag: 'Failed'; readonly terminalReason: string | null }
   | {
       readonly _tag: 'Interrupted'
-      readonly reason: 'stopped' | 'timeout' | 'sandbox_exit' | 'host_stopped'
+      readonly reason: 'stopped' | 'timeout' | 'sandbox_exit' | 'host_stopped' | 'resume_unreadable'
     }
 
 export const initialProgress: TurnProgress = {
@@ -180,7 +184,11 @@ const interruptAndCancelQueued = (q: CancelQueuedInterrupt) =>
     Effect.ignore,
   )
 
-const closing = (turnId: TurnId, end: TurnEnd) => {
+const lostNotice =
+  '会話の記録を読めませんでした。/new で新しいセッションを始められます（これまでの会話の文脈は引き継がれません）。'
+
+/** ターンの終わり方ごとの DB の閉じ方。ターンの中の経路と起動時の復旧が同じ冪等キーを使う */
+export const closing = (turnId: TurnId, sessionId: string, end: TurnEnd) => {
   switch (end._tag) {
     case 'Completed':
       return {
@@ -199,15 +207,46 @@ const closing = (turnId: TurnId, end: TurnEnd) => {
         notice: { idempotencyKey: `notice:failed:${turnId}`, body: 'モデルを呼べませんでした。' },
       } as const
     default:
+      if (end.reason === 'resume_unreadable') {
+        return {
+          from: ['queued', 'running', 'closing'],
+          to: 'interrupted',
+          endReason: end.reason,
+          inboundOutcome: 'interrupted',
+          notice: { idempotencyKey: `notice:lost:${sessionId}`, body: lostNotice },
+          lostSession: true,
+        } as const
+      }
       return {
-        from: ['running', 'closing'],
+        from: ['queued', 'running', 'closing'],
         to: 'interrupted',
         endReason: end.reason,
         inboundOutcome: 'interrupted',
-        notice: { idempotencyKey: `notice:interrupted:${turnId}`, body: '作業を中断しました。' },
+        notice: {
+          idempotencyKey: `notice:interrupted:${turnId}`,
+          body: '作業を中断しました。',
+        },
       } as const
   }
 }
+
+const interruptionNotice = (previous: PreviousInterruption) =>
+  [
+    '[Kurumi からの知らせ] 前のターンは中断され、最後まで終わっていません。',
+    previous.toolCalls.length === 0
+      ? '中断の時点で始まっていたツール呼び出しは記録されていません。'
+      : [
+          '中断の時点で始まっていたツール呼び出し（ツールが最後まで動いたかどうかは分かりません）:',
+          ...previous.toolCalls.map((c) => `- ${c.toolName} ${c.inputSummary}`),
+        ].join('\n'),
+    previous.delivered.length === 0
+      ? '前のターンで利用者へ送り終えた文はありません。'
+      : [
+          '前のターンで利用者へ送り終えた文（同じ内容を送り直さないでください）:',
+          ...previous.delivered.map((body) => `- ${body}`),
+        ].join('\n'),
+    '前のターンの作業を自動ではやり直していません。必要なら、結果を確かめてから続けてください。',
+  ].join('\n')
 
 export const runTurn = (
   deps: TurnDeps,
@@ -220,8 +259,56 @@ export const runTurn = (
       sessionId: session.id,
       inboundIds: [inbound[0].id, ...inbound.slice(1).map((m) => m.id)],
     })
+    // ホストの停止で中断されたら、印を付けられれば付ける。付けられなければ次の起動の復旧が同じ印を付ける。
+    yield* executeTurn(deps, session, inbound, control, turnId).pipe(
+      Effect.onInterrupt(() =>
+        closeTurn({
+          turnId,
+          sessionId: session.id,
+          lastAssistantUuid: null,
+          ...closing(turnId, session.id, { _tag: 'Interrupted', reason: 'host_stopped' }),
+        }).pipe(Effect.ignore),
+      ),
+    )
+  })
+
+const executeTurn = (
+  deps: TurnDeps,
+  session: SessionRow,
+  inbound: readonly [InboundRow, ...InboundRow[]],
+  control: TurnControl,
+  turnId: TurnId,
+): Effect.Effect<void, StoreError, AgentRuntimeDb> =>
+  Effect.gen(function* () {
     const promptUuid = crypto.randomUUID()
     yield* transitionTurn(turnId, 'queued', 'running', { startedAt: new Date(), promptUuid })
+
+    if (session.claudeSessionId !== null) {
+      const last = yield* findLastPromptedTurn(session.id, turnId)
+      const required =
+        last === undefined
+          ? []
+          : [
+              ...(last.promptUuid === null ? [] : [last.promptUuid]),
+              ...(last.state === 'completed' && last.lastAssistantUuid !== null
+                ? [last.lastAssistantUuid]
+                : []),
+            ]
+      const readable = yield* Effect.promise(() =>
+        transcriptHolds(session.configDir, session.claudeSessionId!, required),
+      )
+      if (!readable) {
+        yield* closeTurn({
+          turnId,
+          sessionId: session.id,
+          lastAssistantUuid: null,
+          ...closing(turnId, session.id, { _tag: 'Interrupted', reason: 'resume_unreadable' }),
+        })
+        yield* deps.notifyOutbound
+        return
+      }
+    }
+    const previous = yield* findPreviousInterruption(session.id, turnId)
 
     const sandboxTurn: TurnSandbox = {
       name: `kurumi-turn-${crypto.randomUUID()}`,
@@ -235,7 +322,13 @@ export const runTurn = (
     const gateClosed = yield* Deferred.make<TurnEnd>()
     const input = userInput({
       type: 'user',
-      message: { role: 'user', content: inbound.map((m) => m.body).join('\n\n') },
+      message: {
+        role: 'user',
+        content: [
+          ...(previous ? [interruptionNotice(previous)] : []),
+          ...inbound.map((m) => m.body),
+        ].join('\n\n'),
+      },
       parent_tool_use_id: null,
       uuid: promptUuid,
     })
@@ -444,7 +537,7 @@ export const runTurn = (
       turnId,
       sessionId: session.id,
       lastAssistantUuid,
-      ...closing(turnId, end),
+      ...closing(turnId, session.id, end),
     })
     yield* deps.notifyOutbound
   })

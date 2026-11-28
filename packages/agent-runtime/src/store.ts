@@ -1,4 +1,16 @@
-import { and, asc, defineRelations, eq, exists, inArray, isNull } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  defineRelations,
+  desc,
+  eq,
+  exists,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+} from 'drizzle-orm'
 import * as Drizzle from 'drizzle-orm/effect-sqlite-bun'
 import { Context, Data, Effect, Layer } from 'effect'
 
@@ -167,6 +179,14 @@ export const listInFlightTurns = Effect.gen(function* () {
     .where(inArray(turns.state, ['running', 'closing']))
 })
 
+export const listUnfinishedTurns = Effect.gen(function* () {
+  const db = yield* AgentRuntimeDb
+  return yield* db
+    .select()
+    .from(turns)
+    .where(inArray(turns.state, ['queued', 'running', 'closing']))
+})
+
 export type SessionRow = typeof sessions.$inferSelect
 export type InboundRow = typeof inboundMessages.$inferSelect
 export type DbError = Effect.Error<ReturnType<typeof closeTurn>>
@@ -207,6 +227,87 @@ export const setClaudeSessionId = (sessionId: string, claudeSessionId: string) =
       .where(and(eq(sessions.id, sessionId), isNull(sessions.claudeSessionId)))
   })
 
+export type PreviousInterruption = {
+  readonly toolCalls: readonly { readonly toolName: string; readonly inputSummary: string }[]
+  /** 利用者へ配信済みの、エージェントが送った文（知らせは含めない） */
+  readonly delivered: readonly string[]
+}
+
+/** 同じセッションで `beforeTurnId` の前の最新のターンが interrupted なら、そのターンで起きたことを返す */
+export const findPreviousInterruption = (sessionId: string, beforeTurnId: TurnId) =>
+  Effect.gen(function* () {
+    const db = yield* AgentRuntimeDb
+    const [previous] = yield* db
+      .select({ id: turns.id, state: turns.state })
+      .from(turns)
+      .where(and(eq(turns.sessionId, sessionId), lt(turns.id, beforeTurnId)))
+      .orderBy(desc(turns.id))
+      .limit(1)
+    if (previous?.state !== 'interrupted') return undefined
+    const calls = yield* db
+      .select({ toolName: toolCalls.toolName, inputSummary: toolCalls.inputSummary })
+      .from(toolCalls)
+      .where(eq(toolCalls.turnId, previous.id))
+      .orderBy(asc(toolCalls.startedAt), asc(toolCalls.toolUseId))
+    const sent = yield* db
+      .select({ body: outboundMessages.body })
+      .from(outboundMessages)
+      .where(
+        and(
+          eq(outboundMessages.turnId, previous.id),
+          eq(outboundMessages.state, 'delivered'),
+          ne(outboundMessages.kind, 'notice'),
+        ),
+      )
+      .orderBy(asc(outboundMessages.id))
+    return { toolCalls: calls, delivered: sent.map((m) => m.body) } satisfies PreviousInterruption
+  })
+
+/** `beforeTurnId` の前で、prompt_uuid を記録した最新のターン */
+export const findLastPromptedTurn = (sessionId: string, beforeTurnId: TurnId) =>
+  Effect.gen(function* () {
+    const db = yield* AgentRuntimeDb
+    const [row] = yield* db
+      .select({
+        promptUuid: turns.promptUuid,
+        state: turns.state,
+        lastAssistantUuid: turns.lastAssistantUuid,
+      })
+      .from(turns)
+      .where(
+        and(
+          eq(turns.sessionId, sessionId),
+          lt(turns.id, beforeTurnId),
+          isNotNull(turns.promptUuid),
+        ),
+      )
+      .orderBy(desc(turns.id))
+      .limit(1)
+    return row
+  })
+
+export const listSessionsWithUnassignedInbound = Effect.gen(function* () {
+  const db = yield* AgentRuntimeDb
+  const rows = yield* db
+    .selectDistinct({ id: sessions.id })
+    .from(sessions)
+    .innerJoin(
+      inboundMessages,
+      and(
+        eq(inboundMessages.channel, sessions.channel),
+        eq(inboundMessages.conversation, sessions.conversation),
+      ),
+    )
+    .where(
+      and(
+        eq(sessions.status, 'active'),
+        isNull(inboundMessages.turnId),
+        isNull(inboundMessages.outcome),
+      ),
+    )
+  return rows.map((r) => r.id)
+})
+
 export const listUnassignedInbound = (channel: string, conversation: string) =>
   Effect.gen(function* () {
     const db = yield* AgentRuntimeDb
@@ -243,12 +344,14 @@ export const insertOutbound = (message: NewOutbound) =>
 export type TurnClosing = {
   readonly turnId: TurnId
   readonly sessionId: string
-  readonly from: readonly ('running' | 'closing')[]
+  readonly from: readonly ('queued' | 'running' | 'closing')[]
   readonly to: 'completed' | 'failed' | 'interrupted'
   readonly endReason: string | null
   readonly lastAssistantUuid: string | null
   readonly inboundOutcome: 'answered' | 'failed' | 'interrupted'
   readonly notice: { readonly idempotencyKey: string; readonly body: string } | null
+  /** 同じトランザクションでセッションを lost にする */
+  readonly lostSession?: true
 }
 
 export const closeTurn = (closing: TurnClosing) =>
@@ -281,6 +384,12 @@ export const closeTurn = (closing: TurnClosing) =>
             answeredAt: closing.inboundOutcome === 'answered' ? now : null,
           })
           .where(eq(inboundMessages.turnId, closing.turnId))
+        if (closing.lostSession) {
+          yield* tx
+            .update(sessions)
+            .set({ status: 'lost' })
+            .where(eq(sessions.id, closing.sessionId))
+        }
         if (closing.notice) {
           yield* tx
             .insert(outboundMessages)
@@ -323,6 +432,15 @@ export const claimNextOutbound = Effect.gen(function* () {
     .where(and(eq(outboundMessages.id, next.id), eq(outboundMessages.state, 'pending')))
     .returning({ id: outboundMessages.id })
   return claimed.length === 1 ? next : undefined
+})
+
+/** 配達の途中で止まった送信を、もう一度配達できる状態に戻す */
+export const releaseAllSendingOutbound = Effect.gen(function* () {
+  const db = yield* AgentRuntimeDb
+  yield* db
+    .update(outboundMessages)
+    .set({ state: 'pending' })
+    .where(eq(outboundMessages.state, 'sending'))
 })
 
 const moveOutbound = (id: number, from: 'sending', to: 'delivered' | 'pending') =>
