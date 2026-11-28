@@ -11,9 +11,11 @@
     "generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@effect/sql-sqlite-bun": "catalog:",
     "drizzle-orm": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "drizzle-kit": "catalog:"
