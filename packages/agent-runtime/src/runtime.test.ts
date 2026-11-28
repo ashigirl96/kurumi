@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -12,7 +12,7 @@ import {
   Runtime,
   type RuntimeConfig,
 } from './runtime.ts'
-import { inboundMessages, outboundMessages, turns } from './schema.ts'
+import { inboundMessages, outboundMessages, sessions, turns } from './schema.ts'
 import { AgentRuntimeDb } from './store.ts'
 import { testDbLayer } from './testing/db.ts'
 import type { Script } from './testing/fake-cli.ts'
@@ -101,6 +101,11 @@ const allTurns = Effect.gen(function* () {
 const allInbound = Effect.gen(function* () {
   const db = yield* AgentRuntimeDb
   return yield* db.select().from(inboundMessages)
+})
+
+const allSessions = Effect.gen(function* () {
+  const db = yield* AgentRuntimeDb
+  return yield* db.select().from(sessions)
 })
 
 const allOutbound = Effect.gen(function* () {
@@ -230,5 +235,86 @@ describe('Runtime', () => {
       expect(h.sandbox.spawns).toHaveLength(3)
       expect(h.sandbox.alive()).toBe(0)
     })
+  })
+  test('配達関数が 1 度失敗しても、後で配達されて delivered になる', async () => {
+    let attempts = 0
+    const succeeded: string[] = []
+    const h = harness(() => say('届け直す'), {
+      deliver: (m) =>
+        Effect.suspend(() => {
+          attempts++
+          if (attempts === 1) return Effect.fail(new Error('チャンネルが落ちている'))
+          succeeded.push(m.body)
+          return Effect.void
+        }),
+    })
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        yield* runtime.receive(inbound('届けて'))
+        yield* eventually(
+          'delivered',
+          Effect.map(allOutbound, (rows) => rows.length === 1 && rows[0]?.state === 'delivered'),
+        )
+      }),
+    )
+    expect(attempts).toBe(2)
+    expect(succeeded).toEqual(['届け直す'])
+  })
+
+  test('同じセッションの 2 つ目のターンは resume で起こされ、作業場所のファイルが残っている', async () => {
+    const h = harness((n) =>
+      n === 0
+        ? {
+            first: {
+              steps: [
+                {
+                  kind: 'tool',
+                  name: 'Write',
+                  writes: { path: 'note.txt', content: '前のターンのメモ' },
+                },
+                { kind: 'say', text: '書いた' },
+              ],
+            },
+          }
+        : say('読んだ'),
+    )
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        yield* runtime.receive(inbound('書いて'))
+        yield* eventually('first turn completed', turnsEnded(1))
+        yield* runtime.receive(inbound('続けて'))
+        yield* eventually('second turn completed', turnsEnded(2))
+
+        const [session] = yield* allSessions
+        expect(session?.claudeSessionId).toBeString()
+        const [first, second] = h.sandbox.spawns
+        expect(first?.resume).toBe(false)
+        expect(second?.resume).toBe(true)
+        expect(second?.args).toContain(`--resume=${session!.claudeSessionId}`)
+        expect(second?.turn.workspaceDir).toBe(session!.workspaceDir)
+        expect(readFileSync(join(session!.workspaceDir, 'note.txt'), 'utf8')).toBe(
+          '前のターンのメモ',
+        )
+      }),
+    )
+  })
+
+  test('Runtime.layer の scope を閉じると、動いていたターンの子プロセスが残らない', async () => {
+    const h = harness(() => parked())
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        yield* runtime.receive(inbound('止まったまま'))
+        yield* Effect.promise(() => h.sandbox.gate(0).reached('hold'))
+        expect(h.sandbox.alive()).toBe(1)
+      }),
+    )
+    expect(h.sandbox.alive()).toBe(0)
+    expect(h.sandbox.disposed).toHaveLength(1)
   })
 })
