@@ -329,6 +329,49 @@ describe('resume の照合と /new', () => {
     expect(h.sandbox.spawns.map((s) => s.resume)).toEqual([false, false, true])
   })
 
+  test('lost のセッションに届いた受信は残したまま受信ごとに /new を案内し、再配達には案内せず、/new の後に答える', async () => {
+    const h = harness((n) => say(n === 0 ? '一つ目の答え' : '新しい答え'))
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        yield* runtime.receive(inbound('a'))
+        yield* eventually('first completed', turnsEnded(1))
+        yield* loseCurrent('b')
+        yield* deliveredCount(2)
+
+        const c = inbound('c')
+        expect(yield* runtime.receive(c)).toBe('stored')
+        expect(yield* runtime.receive(c)).toBe('duplicate')
+        yield* runtime.receive(inbound('d'))
+        yield* deliveredCount(4)
+        const waiting = (yield* allInbound).slice(2)
+        expect(waiting.map((m) => [m.body, m.outcome, m.turnId])).toEqual([
+          ['c', null, null],
+          ['d', null, null],
+        ])
+        expect((yield* allOutbound).slice(2).map((o) => [o.kind, o.idempotencyKey])).toEqual(
+          waiting.map((m) => ['notice', `notice:lost-pending:${m.id}`]),
+        )
+        expect(h.delivered.slice(2).map((m) => m.body)).toEqual([
+          expect.stringContaining('/new'),
+          expect.stringContaining('/new'),
+        ])
+
+        yield* runtime.receive(inbound('/new'))
+        yield* eventually(
+          'waiting answered',
+          Effect.map(allInbound, (rows) =>
+            rows
+              .filter((m) => m.body === 'c' || m.body === 'd')
+              .every((m) => m.outcome === 'answered'),
+          ),
+        )
+      }),
+    )
+    expect(h.delivered.map((m) => m.body).at(-1)).toBe('新しい答え')
+  })
+
   test('/new は lost でなければ何もせず、ターンにも渡らない', async () => {
     const h = harness(() => say('答え'))
     await run(

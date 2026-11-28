@@ -18,6 +18,7 @@ import {
   type DbError,
   findSession,
   getSession,
+  insertOutbound,
   insertSession,
   interruptUnassignedInbound,
   listUnassignedInbound,
@@ -74,6 +75,8 @@ export type RuntimeApi = {
 const deliveryRetryDelay = '1 second'
 const defaultTurnTimeout: Duration.Input = '30 minutes'
 const defaultApprovalTimeout: Duration.Input = '15 minutes'
+const lostPendingNotice =
+  '会話の記録を読めないため、今は答えられません。/new で新しいセッションを始めると、待っているメッセージに答えます（それまでの会話の文脈は引き継がれません）。'
 
 const makeRuntime = (config: RuntimeConfig) =>
   Effect.gen(function* () {
@@ -211,6 +214,17 @@ const makeRuntime = (config: RuntimeConfig) =>
         }
         const session = yield* ensureSession(message.channel, message.conversation)
         const stored = yield* storeInbound(message)
+        if (stored && session.status === 'lost') {
+          yield* insertOutbound({
+            sessionId: session.id,
+            turnId: null,
+            kind: 'notice',
+            body: lostPendingNotice,
+            idempotencyKey: `notice:lost-pending:${stored.id}`,
+          })
+          yield* outbox.notify
+          return 'stored' as const
+        }
         const pushed = stored
           ? yield* (activeTurns.get(session.id)?.accept?.(stored) ?? Effect.succeed(false)).pipe(
               Effect.catchCause((cause) => Effect.as(Effect.logError('push failed', cause), false)),
