@@ -72,8 +72,8 @@ NanoClaw は `groups/<folder>/` に `CLAUDE.md` を起動のたびに組み直�
 
 Kurumi にあるもの:
 
-- `Runtime.layer` は、作られるときに回復と配信ループを始める。
-- ターンは全体で 3 つまで、Session ごとに 1 つまで並び、制限時間は 30 分である【コード `runtime.ts:89-111, 244-249`】。
+- `Runtime.layer` は、作られるときに回復と配信ループを始める【コード `runtime.ts:244-249`】。
+- ターンは全体で 3 つまで、Session ごとに 1 つまで並び、制限時間は 30 分である【コード `runtime.ts:77-111`】。
 
 Kurumi にないもの:
 
