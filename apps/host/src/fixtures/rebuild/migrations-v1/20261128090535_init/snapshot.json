@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "62c04812-e58b-4ac6-8189-4a463599030e",
+  "id": "03ea319c-f5ce-4fdb-9999-0fbb14df73cd",
   "prevIds": [
-    "23372d3c-3663-4c64-a840-e708fc601677"
+    "00000000-0000-0000-0000-000000000000"
   ],
   "ddl": [
     {
@@ -86,15 +86,6 @@
       ],
       "nameExplicit": false,
       "entityType": "pks"
-    },
-    {
-      "table": "turns",
-      "name": "turns_session_id_unique",
-      "columns": [
-        "session_id"
-      ],
-      "nameExplicit": false,
-      "entityType": "uniques"
     }
   ],
   "renames": []
