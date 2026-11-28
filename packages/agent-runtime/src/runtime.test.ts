@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { Effect, Layer } from 'effect'
+import { Effect, Exit, Layer } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import {
@@ -27,6 +27,15 @@ afterEach(async () => {
 })
 
 const say = (text: string): Script => ({ first: { steps: [{ kind: 'say', text }] } })
+
+const parked = (name = 'hold'): Script => ({
+  first: {
+    steps: [
+      { kind: 'park', name },
+      { kind: 'say', text: 'done' },
+    ],
+  },
+})
 
 type Harness = ReturnType<typeof harness>
 
@@ -127,5 +136,49 @@ describe('Runtime', () => {
     ])
     expect(h.sandbox.spawns).toHaveLength(1)
     expect(h.sandbox.alive()).toBe(0)
+  })
+  test('同じ platform_message_id の 2 度目は duplicate で、ターンに渡る受信は 1 つ', async () => {
+    const h = harness(() => say('一度だけ'))
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        const message = inbound('同じ')
+        expect(yield* runtime.receive(message)).toBe('stored')
+        expect(yield* runtime.receive(message)).toBe('duplicate')
+        yield* eventually('turn completed', turnsEnded(1))
+        expect(yield* allInbound).toHaveLength(1)
+        expect(yield* allTurns).toHaveLength(1)
+      }),
+    )
+    expect(h.sandbox.spawns).toHaveLength(1)
+  })
+
+  test('receive が返った時点で受信は DB にコミット済み', async () => {
+    const h = harness(() => parked())
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        yield* runtime.receive(inbound('すぐ残る'))
+        expect((yield* allInbound).map((m) => m.body)).toEqual(['すぐ残る'])
+        yield* Effect.promise(() => h.sandbox.gate(0).reached('hold'))
+        h.sandbox.gate(0).release('hold')
+      }),
+    )
+  })
+
+  test('DB に書けないとき receive は失敗する', async () => {
+    const h = harness(() => say('届かない'))
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        const sql = yield* SqlClient.SqlClient
+        yield* sql`DROP TABLE inbound_messages`
+        expect(Exit.isFailure(yield* Effect.exit(runtime.receive(inbound('落ちる'))))).toBe(true)
+      }),
+    )
+    expect(h.sandbox.spawns).toHaveLength(0)
   })
 })
