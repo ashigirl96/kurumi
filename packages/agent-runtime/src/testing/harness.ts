@@ -126,7 +126,6 @@ export const turnsEnded = (count: number) =>
     (rows) => rows.length === count && rows.every((t) => t.state === 'completed'),
   )
 
-/** 同じ DB に Runtime.layer を何度でも作る。`boot` に渡した処理ごとに Runtime を立ち上げ、終わると scope を閉じる */
 export const onSharedDb = <A, E>(
   h: Harness,
   body: (

@@ -44,10 +44,8 @@ export type TurnDeps = {
   readonly approvals: GateDeps['approvals']
 }
 
-/** Runtime がセッションごとに持ち、動いているターンへの止める合図と押し込みの入口になる */
 export type TurnControl = {
   readonly stop: Deferred.Deferred<'stopped' | 'timeout'>
-  /** ターンが running になるまでは undefined */
   accept: ((row: InboundRow) => Effect.Effect<boolean, DbError, AgentRuntimeDb>) | undefined
 }
 
@@ -57,12 +55,9 @@ type CommandState = 'accepted' | 'queued' | 'started' | 'completed' | 'cancelled
 
 export type TurnProgress = {
   readonly phase: 'running' | 'closing'
-  /** 最後に届いたのが result でなければ true */
   readonly awaitingResult: boolean
-  /** ターン中に押し込んだ受信の uuid と状態。最初の入力は含めない */
   readonly pushed: ReadonlyMap<string, CommandState>
   readonly openApprovals: number
-  /** 届いた result の数。final の冪等キーに使う */
   readonly cliTurns: number
   readonly lastAssistantUuid: string | null
 }
@@ -120,7 +115,6 @@ const step = (p: TurnProgress, e: TurnEvent): TurnProgress => {
 
 const settled = (state: CommandState) => state === 'completed' || state === 'cancelled'
 
-/** phase は running で 3 条件がそろうと closing になり、戻らない */
 export const advance = (p: TurnProgress, e: TurnEvent): TurnProgress => {
   const next = step(p, e)
   const ready =
@@ -187,7 +181,6 @@ const interruptAndCancelQueued = (q: CancelQueuedInterrupt) =>
 const lostNotice =
   '会話の記録を読めませんでした。/new で新しいセッションを始められます（これまでの会話の文脈は引き継がれません）。'
 
-/** ターンの終わり方ごとの DB の閉じ方。ターンの中の経路と起動時の復旧が同じ冪等キーを使う */
 export const closing = (turnId: TurnId, sessionId: string, end: TurnEnd) => {
   switch (end._tag) {
     case 'Completed':
@@ -259,7 +252,6 @@ export const runTurn = (
       sessionId: session.id,
       inboundIds: [inbound[0].id, ...inbound.slice(1).map((m) => m.id)],
     })
-    // ホストの停止で中断されたら、印を付けられれば付ける。付けられなければ次の起動の復旧が同じ印を付ける。
     yield* executeTurn(deps, session, inbound, control, turnId).pipe(
       Effect.onInterrupt(() =>
         closeTurn({
@@ -337,7 +329,6 @@ const executeTurn = (
             : ([false, p] as const),
         )
         if (!taken) return false
-        // 取り下げても closing を評価し直さない。割り当てに失敗するのは /stop の最中か DB の障害で、前者はターンが止まる経路で終わり、後者は制限時間で終わる。
         const withdraw = Ref.update(progress, (p) => {
           const pushed = new Map(p.pushed)
           pushed.delete(uuid)
@@ -360,7 +351,6 @@ const executeTurn = (
         return true
       })
 
-    // approval-closed で closing の条件がそろっても SDK の出力は来ないので、閉じる判定をここからも起こす。
     const approvalClosed = Ref.modify(progress, (p) => {
       const next = advance(p, { type: 'approval-closed' })
       return [{ closes: p.phase === 'running' && next.phase === 'closing' }, next] as const
@@ -515,7 +505,6 @@ const executeTurn = (
           Effect.map((reason): TurnEnd => ({ _tag: 'Interrupted', reason })),
         )
         const raced = yield* Effect.raceAllFirst([read, hostStop, Deferred.await(gateClosed)])
-        // 止め始めた後に CLI が result を返したり落ちたりしても、止めた理由のほうを残す。
         const stopped = (yield* Deferred.isDone(control.stop))
           ? yield* Deferred.await(control.stop)
           : undefined

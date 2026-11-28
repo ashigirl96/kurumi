@@ -1,5 +1,3 @@
-// 本物の Claude Code CLI 2.1.332 の stream-json を、記録（recordings/）どおりに話す偽の CLI。
-// 子プロセスとして起こし、筋書きは FAKE_CLI_SCRIPT、合図の置き場は FAKE_CLI_SIGNAL_DIR で受け取る。
 import { appendFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -9,18 +7,13 @@ export const Step = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('say'), text: z.string() }),
   z.object({
     kind: z.literal('tool'),
-    /** `mcp__<server>__<tool>` ならホストの MCP ツールを呼ぶ。それ以外は偽の組み込みツール */
     name: z.string(),
     input: z.record(z.string(), z.unknown()).default({}),
     output: z.string().default(''),
-    /** 組み込みツールが動いた印。作業ディレクトリからの相対 path に書く */
     writes: z.object({ path: z.string(), content: z.string() }).optional(),
-    /** `tool_use` の id。同じ id で 2 度呼ぶときに決める。省略すると乱数 */
     id: z.string().optional(),
-    /** MCP の呼び出しから `_meta` を落とす */
     dropMeta: z.boolean().default(false),
   }),
-  /** `<signalDir>/<name>.reached` を作り、`<name>.go` が現れるまで止まる */
   z.object({ kind: z.literal('park'), name: z.string() }),
   z.object({ kind: z.literal('hang') }),
   z.object({ kind: z.literal('crash'), code: z.number() }),
@@ -40,9 +33,7 @@ const Phase = z.object({
 })
 
 export const Script = z.object({
-  /** ターンの最初の受信を受けたときの段 */
   first: Phase.default(Phase.parse({})),
-  /** `priority: 'next'` で押し込まれた受信を受けたときの段 */
   next: Phase.default(Phase.parse({})),
 })
 export type Script = z.input<typeof Script>

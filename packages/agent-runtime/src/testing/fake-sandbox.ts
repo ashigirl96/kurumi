@@ -12,9 +12,7 @@ import type { Script } from './fake-cli.ts'
 const fakeCliPath = join(import.meta.dir, 'fake-cli.ts')
 
 export type Gate = {
-  /** 筋書きの `park` の段に着くまで待つ */
   reached(name: string): Promise<void>
-  /** `park` の段で止まっているのを先へ進める */
   release(name: string): void
 }
 
@@ -25,14 +23,10 @@ export type FakeSandbox = Sandbox & {
     readonly resume: boolean
   }[]
   readonly disposed: TurnSandbox[]
-  /** n 番目（0 始まり）に起こした子プロセスの合図 */
   gate(n: number): Gate
-  /** n 番目（0 始まり）の CLI が標準入力から受け取った行（JSON として読めたもの） */
   received(n: number): unknown[]
-  /** 次の `dispose` を、`release` が呼ばれるまで子プロセスを殺す前で止める */
   holdDispose(): { entered: Promise<void>; release: () => void }
   alive(): number
-  /** `sweep` が呼ばれた回数 */
   swept(): number
 }
 

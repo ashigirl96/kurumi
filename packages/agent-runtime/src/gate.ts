@@ -16,12 +16,11 @@ export type ApprovalRequest = {
   readonly sessionId: string
   readonly turnId: TurnId
   readonly toolName: string
-  /** 切らずに渡す。要約だけを見せると、見えない後ろの部分を承認させられる */
+  /** 切らずに渡す */
   readonly input: unknown
   readonly expiresAt: Date
 }
 
-// SDK の disallowedTools にも同じ一覧を渡す
 export const forbiddenTools = [
   'CronCreate',
   'CronDelete',
@@ -41,7 +40,6 @@ export type GateDeps = {
   readonly policy: Policy
   readonly onApprovalRequest: (request: ApprovalRequest) => Effect.Effect<void>
   readonly approvalTimeout: Duration.Input
-  /** 答えを待っている承認依頼。Runtime の `answerApproval` がここへ答えを渡す */
   readonly approvals: Map<string, Deferred.Deferred<ApprovalDecision>>
 }
 
@@ -50,7 +48,6 @@ export type GateTurn = {
   readonly conversation: string
   readonly sessionId: string
   readonly turnId: TurnId
-  /** /stop・制限時間・ターンの終わりのどれかで完了し、承認の待ちを deny で終わらせる */
   readonly ended: Effect.Effect<unknown>
   readonly approvalOpened: Effect.Effect<void>
   readonly approvalClosed: Effect.Effect<void, unknown, AgentRuntimeDb>
@@ -62,7 +59,6 @@ export type ToolCall = {
   readonly input: unknown
 }
 
-/** すべてのツール呼び出しが通る唯一の関所。許可を返す前に `tool_calls` をコミットする */
 export const makeGate = (deps: GateDeps, turn: GateTurn) => {
   const ask = (call: ToolCall) =>
     Effect.gen(function* () {
@@ -70,7 +66,6 @@ export const makeGate = (deps: GateDeps, turn: GateTurn) => {
       const answer = yield* Deferred.make<ApprovalDecision>()
       deps.approvals.set(id, answer)
       yield* turn.approvalOpened
-      // 答え・時間切れ・止める合図のどれが先でも、決めるのはこの Deferred 1 つだけにする
       const expire = Effect.raceFirst(Effect.sleep(deps.approvalTimeout), turn.ended).pipe(
         Effect.andThen(Deferred.succeed(answer, 'deny')),
         Effect.andThen(Deferred.await(answer)),

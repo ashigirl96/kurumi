@@ -62,7 +62,7 @@ export const storeInbound = (message: NewInboundMessage) =>
 export const saveInbound = (message: NewInboundMessage) =>
   Effect.map(storeInbound(message), (row) => row !== undefined)
 
-/** 動いている（running の）ターンにだけ、まだ誰にも割り当てられていない受信を割り当てる。ターンが閉じ始めた後の割り当てで受信が宙に浮かないようにする。 */
+/** 動いている（running の）ターンにだけ、まだ誰にも割り当てられていない受信を割り当てる。 */
 export const assignInboundToRunningTurn = (inboundId: InboundMessageId, turnId: TurnId) =>
   Effect.gen(function* () {
     const db = yield* AgentRuntimeDb
@@ -183,7 +183,6 @@ export type StoreError = DbError | InboundNotAssignable
 export const findSession = (channel: string, conversation: string) =>
   Effect.gen(function* () {
     const db = yield* AgentRuntimeDb
-    // 'active' は 'lost' より辞書順で先にくる
     const [row] = yield* db
       .select()
       .from(sessions)
@@ -418,7 +417,6 @@ export const claimNextOutbound = Effect.gen(function* () {
   return claimed.length === 1 ? next : undefined
 })
 
-/** 配達の途中で止まった送信を、もう一度配達できる状態に戻す */
 export const releaseAllSendingOutbound = Effect.gen(function* () {
   const db = yield* AgentRuntimeDb
   yield* db

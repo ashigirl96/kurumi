@@ -15,14 +15,12 @@ export type OutboundToDeliver = {
 
 export type Deliver = (message: OutboundToDeliver) => Effect.Effect<void, unknown>
 
-/** 配達ループは 1 本だけなので、失敗した行が先頭で待つあいだ後ろの行も止まる。 */
 export const makeOutbox = (
   channels: Readonly<Record<string, Deliver>>,
   retryDelay: Duration.Input,
 ) =>
   Effect.gen(function* () {
     const wake = yield* Queue.sliding<void>(1)
-    // 起動時に 1 度起こし、前の起動から残った pending を送る
     yield* Queue.offer(wake, undefined)
 
     const deliverOne = Effect.gen(function* () {

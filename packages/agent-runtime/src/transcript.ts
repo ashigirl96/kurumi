@@ -8,14 +8,11 @@ const uuidsIn = (text: string) => {
       const row: unknown = JSON.parse(line)
       if (typeof row === 'object' && row !== null && 'uuid' in row && typeof row.uuid === 'string')
         uuids.add(row.uuid)
-    } catch {
-      // 読めない行は飛ばす
-    }
+    } catch {}
   }
   return uuids
 }
 
-/** CLI の会話記録が読めて、`required` の uuid がすべて、読める行として残っているか */
 export const transcriptHolds = async (
   configDir: string,
   claudeSessionId: string,

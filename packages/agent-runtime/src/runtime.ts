@@ -113,7 +113,6 @@ const makeRuntime = (config: RuntimeConfig) =>
           Effect.gen(function* () {
             const session = yield* getSession(sessionId)
             if (session?.status !== 'active') return
-            // 未割り当ての受信を読む前に置く。/stop がその後に届けば、止める合図はこのターンに届く。
             const control: TurnControl = {
               stop: yield* Deferred.make<'stopped' | 'timeout'>(),
               accept: undefined,
@@ -194,10 +193,8 @@ const makeRuntime = (config: RuntimeConfig) =>
       Effect.gen(function* () {
         if (message.body.trim() === '/stop') return yield* stop(message)
         if (message.body.trim() === '/new') return yield* newSession(message)
-        // 先に session を作る。受信を書いたあとで失敗すると、再送の受信が重複になって起こされない。
         const session = yield* ensureSession(message.channel, message.conversation)
         const stored = yield* storeInbound(message)
-        // 押し込めなかった受信は未割り当てのまま、次のターンが拾う。
         const pushed = stored
           ? yield* (activeTurns.get(session.id)?.accept?.(stored) ?? Effect.succeed(false)).pipe(
               Effect.catchCause((cause) => Effect.as(Effect.logError('push failed', cause), false)),
@@ -212,7 +209,6 @@ const makeRuntime = (config: RuntimeConfig) =>
       return answer ? Deferred.succeed(answer, decision) : Effect.succeed(false)
     }
 
-    // 配達ループを起こす前に流し、前の起動で止まった送信を戻してから配達を始める。
     const wakeSessions = yield* recover(config.sandbox).pipe(
       Effect.provideService(AgentRuntimeDb, db),
       Effect.orDie,

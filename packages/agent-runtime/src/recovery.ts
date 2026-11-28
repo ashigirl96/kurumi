@@ -9,10 +9,6 @@ import {
 } from './store.ts'
 import { closing } from './turn.ts'
 
-/**
- * 前の起動の取り残しを片付ける。何度流しても同じ状態になる。
- * 返すのは、起こして未割り当ての受信を処理させるセッションの id。
- */
 export const recover = (sandbox: Sandbox) =>
   Effect.gen(function* () {
     yield* sandbox.sweep.pipe(
