@@ -1,5 +1,7 @@
-import { readFile, readdir } from 'node:fs/promises'
+import { lstat, readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
+
+const maxTranscriptBytes = 64 * 1024 * 1024
 
 const uuidsIn = (text: string) => {
   const uuids = new Set<string>()
@@ -21,10 +23,13 @@ export const transcriptHolds = async (
   const projects = join(configDir, 'projects')
   const dirs = await readdir(projects).catch(() => [])
   for (const dir of dirs) {
-    const text = await readFile(join(projects, dir, `${claudeSessionId}.jsonl`), 'utf8').catch(
-      () => undefined,
-    )
-    if (text === undefined) continue
+    const file = join(projects, dir, `${claudeSessionId}.jsonl`)
+    const stat = await lstat(file).catch(() => undefined)
+    if (stat === undefined) continue
+    // 会話記録はコンテナの中でエージェントが書けるので、リンクや FIFO を辿らず、大きさも抑える。
+    if (!stat.isFile() || stat.size > maxTranscriptBytes) return false
+    const text = await readFile(file, 'utf8').catch(() => undefined)
+    if (text === undefined) return false
     const found = uuidsIn(text)
     return required.every((uuid) => found.has(uuid))
   }

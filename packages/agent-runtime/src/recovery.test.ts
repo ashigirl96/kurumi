@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  truncateSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 
 import { Effect } from 'effect'
@@ -147,6 +156,23 @@ describe('resume の照合と /new', () => {
       ['会話記録の file が無い', (dir) => rmSync(join(dir, 'projects'), { recursive: true })],
       ['利用者の発言の行が壊れている', (dir, t) => dropLines(t.prompt)(dir)],
       ['最後のアシスタントの行が無い', (dir, t) => dropLines(t.assistant)(dir)],
+      [
+        '会話記録がシンボリックリンクになっている',
+        (dir) => {
+          const file = transcriptFile(dir)
+          renameSync(file, join(dir, 'elsewhere.jsonl'))
+          symlinkSync(join(dir, 'elsewhere.jsonl'), file)
+        },
+      ],
+      [
+        '会話記録が FIFO になっている',
+        (dir) => {
+          const file = transcriptFile(dir)
+          rmSync(file)
+          Bun.spawnSync(['mkfifo', file])
+        },
+      ],
+      ['会話記録が大きすぎる', (dir) => truncateSync(transcriptFile(dir), 64 * 1024 * 1024 + 1)],
     ]
 
   for (const [label, damage] of damages) {
