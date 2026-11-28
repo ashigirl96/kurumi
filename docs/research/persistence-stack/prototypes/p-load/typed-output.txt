@@ -1,0 +1,27 @@
+insert-returning: {"id":1,"session_id":"s1","state":"running","prompt_uuid":null}
+findAll: [{"id":1,"session_id":"s1","state":"running","prompt_uuid":null}]
+transition running->closing first: true  second: false
+== error: column missing from result (SELECT without state)
+  ctor=SchemaError _tag=SchemaError
+    | Missing key
+    |   at [0]["state"]
+== error: wrong type (state value outside the literal union; no CHECK constraint on this table)
+  ctor=SchemaError _tag=SchemaError
+    | Expected "queued" | "running" | "closing" | "completed" | "failed" | "interrupted"
+    |   at [0]["state"]
+== error: wrong type (id read back as TEXT)
+  ctor=SchemaError _tag=SchemaError
+    | Expected number
+    |   at [0]["id"]
+== error: bad request value is rejected before SQL runs (encode side)
+  ctor=SchemaError _tag=SchemaError
+    | Expected "queued" | "running" | "closing" | "completed" | "failed" | "interrupted"
+    |   at ["state"]
+  rows for s3: {
+  n: 0,
+}
+== error channel type: SchemaError is a typed failure, catchable by tag
+  caught SchemaError, issue._tag=Composite
+== Model + SqlModel.makeRepository
+  repo.insert -> TurnModel {"id":3,"session_id":"s4","state":"queued","prompt_uuid":null}
+  repo.findById -> {"id":3,"session_id":"s4","state":"queued","prompt_uuid":null}

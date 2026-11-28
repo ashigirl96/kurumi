@@ -1,0 +1,28 @@
+bun test v1.4.4 (38afee6c8)
+
+test/db.test.ts:
+#0 1.85ms
+#1 0.27ms
+#2 0.26ms
+#3 0.16ms
+#4 0.15ms
+#5 0.15ms
+#6 0.13ms
+#7 0.18ms
+#8 0.13ms
+#9 0.12ms
+#10 0.13ms
+#11 0.12ms
+#12 0.11ms
+#13 0.12ms
+#14 0.28ms
+#15 0.12ms
+#16 0.11ms
+#17 0.11ms
+#18 0.11ms
+#19 0.22ms
+
+ 20 pass
+ 0 fail
+ 40 expect() calls
+Ran 20 tests across 1 file. [11.00ms]

@@ -1,0 +1,72 @@
+### check 1
+## generate init
+[✓] Your SQL migration ➜ drizzle/20261128081025_init/migration.sql 🚀
+## apply on fresh file
+applied: [[1,"20261128081025_init","3a9ae0e3"]]
+turns cols: id,session_id,state
+## apply again
+applied: [[1,"20261128081025_init","3a9ae0e3"]]
+turns cols: id,session_id,state
+## add column turns.prompt_uuid, generate
+[✓] Your SQL migration ➜ drizzle/20261128081027_add_prompt_uuid/migration.sql 🚀
+ALTER TABLE `turns` ADD `prompt_uuid` text;
+## apply second
+applied: [[1,"20261128081025_init","3a9ae0e3"],[2,"20261128081027_add_prompt_uuid","becff6d8"]]
+turns cols: id,session_id,state,prompt_uuid
+## generate again with no change
+No schema changes, nothing to migrate 😴
+## tree
+drizzle/20261128081025_init/migration.sql
+drizzle/20261128081025_init/snapshot.json
+drizzle/20261128081027_add_prompt_uuid/migration.sql
+drizzle/20261128081027_add_prompt_uuid/snapshot.json
+### checks 2-5,7
+## 2 idempotent receipt (onConflictDoNothing)
+  insert #1 result=[]
+  insert #2 result=[]
+  rows with m1: 1
+## 3 cross-domain transaction
+  ok path: [{"p":"a","t":1},{"p":"b","t":1}] turns= 1
+  forced failure exit: Failure("forced")
+  after rollback: [{"p":"a","t":null},{"p":"b","t":null}] turns= 0
+## 4 concurrency on one client
+  4a: A tx (insert, sleep 50ms, insert, fail) || B tx insert+commit
+  [  1ms] A: inserted A1, sleeping 50ms inside tx
+  [ 12ms] B: starting tx
+  [ 53ms] A: exit Failure
+  [ 53ms] B: committed
+  rows: ["B1"] (isolated => [B1])
+  4b: A tx || B non-transactional insert on the same db
+  [  0ms] A: inserted A1, sleeping 50ms inside tx
+  [ 12ms] B: starting plain insert (no tx)
+  [ 51ms] A: exit Failure
+  [ 52ms] B: plain insert done
+  rows: ["B1-plain"]
+  4c: A uses the outer `db` handle (not tx) inside its transaction callback || B tx
+  [  0ms] A: inserted A1, sleeping 50ms inside tx
+  [ 11ms] B: starting tx
+  [ 51ms] A: exit Failure
+  [ 52ms] B: committed
+  rows: ["B1"] (fiber-scoped tx => outer db joins A's tx, so A1/A2 roll back)
+  4d: fiber forked inside A's tx writes via db, A then fails
+  rows: []
+## 7 error shape (typed channel)
+  unique: _tag=EffectDrizzleQueryError msg="Failed query: insert into \"inbound_messages\" (\"id\", \"platform_message_id\", \"body\", \"turn_id\") values (null, ?," -> cause: _tag=SqlError reason._tag=UniqueViolation msg="Failed to execute statement" -> cause: _tag=UniqueViolation msg="Failed to execute statement" -> cause: _tag=Error msg="UNIQUE constraint failed: inbound_messages.platform_message_id"
+  fk:     _tag=EffectDrizzleQueryError msg="Failed query: insert into \"inbound_messages\" (\"id\", \"platform_message_id\", \"body\", \"turn_id\") values (null, ?," -> cause: _tag=SqlError reason._tag=ConstraintError msg="Failed to execute statement" -> cause: _tag=ConstraintError msg="Failed to execute statement" -> cause: _tag=Error msg="FOREIGN KEY constraint failed"
+  unique inside tx: _tag=EffectDrizzleQueryError msg="Failed query: insert into \"inbound_messages\" (\"id\", \"platform_message_id\", \"body\", \"turn_id\") values (null, ?," -> cause: _tag=SqlError reason._tag=UniqueViolation msg="Failed to execute statement" -> cause: _tag=UniqueViolation msg="Failed to execute statement" -> cause: _tag=Error msg="UNIQUE constraint failed: inbound_messages.platform_message_id"
+## 5 FK enforcement
+  PRAGMA foreign_keys untouched (SqliteClient default): ACCEPTED turn_id=999
+  PRAGMA foreign_keys = ON: rejected
+### check 6
+bun test v1.4.4 (38afee6c8)
+inbox.test.ts:
+  idempotent #0: 10.03ms incl. fresh migrated db
+  idempotent #1: 1.61ms incl. fresh migrated db
+  idempotent #2: 1.46ms incl. fresh migrated db
+  idempotent #3: 0.89ms incl. fresh migrated db
+  idempotent #4: 0.78ms incl. fresh migrated db
+  atomic: 1.74ms incl. fresh migrated db
+ 6 pass
+ 0 fail
+ 7 expect() calls
+Ran 6 tests across 1 file. [90.00ms]

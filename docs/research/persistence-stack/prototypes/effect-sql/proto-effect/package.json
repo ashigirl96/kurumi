@@ -1,0 +1,1 @@
+{ "name": "kurumi-effect-proto", "private": true, "type": "module", "workspaces": ["apps/*", "packages/*"] }

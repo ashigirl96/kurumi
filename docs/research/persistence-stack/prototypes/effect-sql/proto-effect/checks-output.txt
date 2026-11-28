@@ -1,0 +1,32 @@
+== 1 migrations
+run#1 (v1): {"turn":[[1,"create_turns"]],"inbox":[[1,"create_inbound_messages"]]}
+run#2 (v1 again): {"turn":[],"inbox":[]}
+run#3 (v2 adds turns.prompt_uuid): {"turn":[[2,"turns_add_prompt_uuid"]],"inbox":[]}
+turns columns: id,session_id,state,prompt_uuid
+migrations_turn: [{"migration_id":1,"name":"create_turns"},{"migration_id":2,"name":"turns_add_prompt_uuid"}]
+migrations_inbox: [{"migration_id":1,"name":"create_inbound_messages"}]
+journal_mode: [{"journal_mode":"wal"}] foreign_keys(default): [{"foreign_keys":0}] sqlite_version: [{"v":"3.54.0"}]
+hazard (single migrator, id 2 arrives after id 3 applied): first=[[1,"create_turns"],[3,"inbox"]] second=[] turns cols=id,session_id,state
+hazard (two packages both use id 1 in one record): Cause([Fail(MigrationError: Found duplicate migration id's)])
+== 2 idempotent receipt
+first inserted=true second inserted=false rows=1
+== 3 cross-domain transaction
+commit: turn=1 assigned=2
+rollback: exit=Failure turns 1->1 P-4 assigned=0
+nested: outer kept=1 inner kept=0
+== 4 concurrency on one client
+  40ms A begin
+  40ms A inserted A-1, sleeping 50ms
+  60ms C plain insert requested (no tx)
+  90ms A inserted A-2, failing
+  91ms B begin (inside tx)
+  91ms B inserted B-1, committing
+  92ms C plain insert done
+exits A=Failure B=Success C=Success; rows A-*=0 B-1=1 C-1=1
+== 5 FK enforcement
+with PRAGMA foreign_keys=ON (host layer): rejected
+client defaults only (no pragma): ACCEPTED
+== 7 error shape
+unique: {"ctor":"SqlError","_tag":"SqlError","reason_tag":"UniqueViolation","message":"Failed to execute statement","cause_name":"SQLiteError","cause_code":"SQLITE_CONSTRAINT_UNIQUE","cause_errno":2067,"operation":"execute"}
+fk: {"ctor":"SqlError","_tag":"SqlError","reason_tag":"ConstraintError","message":"Failed to execute statement","cause_name":"SQLiteError","cause_code":"SQLITE_CONSTRAINT_FOREIGNKEY","cause_errno":787,"operation":"execute"}
+check: {"ctor":"SqlError","_tag":"SqlError","reason_tag":"ConstraintError","message":"Failed to execute statement","cause_name":"SQLiteError","cause_code":"SQLITE_CONSTRAINT_CHECK","cause_errno":275,"operation":"execute"}

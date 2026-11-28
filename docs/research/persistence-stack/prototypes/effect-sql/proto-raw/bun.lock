@@ -1,0 +1,29 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "kurumi-raw-proto",
+    },
+    "apps/host": {
+      "name": "@kurumi/host",
+      "dependencies": {
+        "@kurumi/inbox": "workspace:*",
+        "@kurumi/turn": "workspace:*",
+      },
+    },
+    "packages/inbox": {
+      "name": "@kurumi/inbox",
+    },
+    "packages/turn": {
+      "name": "@kurumi/turn",
+    },
+  },
+  "packages": {
+    "@kurumi/host": ["@kurumi/host@workspace:apps/host"],
+
+    "@kurumi/inbox": ["@kurumi/inbox@workspace:packages/inbox"],
+
+    "@kurumi/turn": ["@kurumi/turn@workspace:packages/turn"],
+  }
+}

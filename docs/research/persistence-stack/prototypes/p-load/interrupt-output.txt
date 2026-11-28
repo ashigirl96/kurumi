@@ -1,0 +1,20 @@
+    8ms == A. Fiber.interrupt on a fiber holding a transaction
+    9ms   A: inserted inside tx, sleeping 10s
+   39ms   A-waiter: plain insert queued behind the open tx
+  113ms   Fiber.interrupt returned after 2.6ms; exit=Failure
+  113ms   A-waiter insert took 73.9ms total (queued ~70ms before interrupt)
+  114ms   row A present=0  new insert after: 0.1ms  new tx after: ok
+  114ms == B. Effect.timeout(100ms) around withTransaction
+  114ms   B: inserted inside tx, sleeping 10s
+  217ms   exit after 102.6ms: Cause([Fail(TimeoutError: Operation timed out after '100ms')])
+  217ms   row B present=0  new insert after: 0.2ms  new tx after: ok
+  217ms == C. Interrupt the whole fiber while inside a nested transaction (savepoint)
+  218ms   C-inner: inserted inside tx, sleeping 10s
+  271ms   exit=Failure C-outer present=0 C-inner present=0  new insert: 0.4ms  new tx: ok
+  271ms == D. Timeout only the inner savepoint; outer continues and commits
+  324ms   inner exit: Cause([Fail(TimeoutError: Operation timed out after '50ms')])
+  325ms   outer exit=Success D-outer=1 D-inner=0 D-outer-2=1  new tx: ok
+  325ms == E. Interrupt a transaction still queued for the lock
+  428ms   queued exit=Failure E-holder=1 E-queued=0  new insert: 0.2ms  new tx: ok
+  428ms == F. Many interrupts in a row (permit leak check): 200 x interrupt mid-tx, then one write
+  684ms   F rows left=0  new insert: 0.1ms  new tx: ok

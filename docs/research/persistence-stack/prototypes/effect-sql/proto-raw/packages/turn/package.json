@@ -1,0 +1,1 @@
+{ "name": "@kurumi/turn", "private": true, "type": "module", "exports": { ".": "./src/index.ts" } }

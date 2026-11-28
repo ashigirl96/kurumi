@@ -1,0 +1,1 @@
+ALTER TABLE `turns` ADD `prompt_uuid` text;

@@ -1,0 +1,1 @@
+{ "name": "@kurumi/host", "private": true, "type": "module", "dependencies": { "effect": "4.1.7", "@effect/sql-sqlite-bun": "4.1.7", "@kurumi/inbox": "workspace:*", "@kurumi/turn": "workspace:*" } }

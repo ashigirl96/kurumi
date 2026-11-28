@@ -1,0 +1,23 @@
+import { Effect, Exit, Cause } from "effect";
+import * as Drizzle from "drizzle-orm/effect-sqlite-bun";
+import { migrate } from "drizzle-orm/effect-sqlite-bun/migrator";
+import { sql } from "drizzle-orm";
+import { cpSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { sqliteLayer } from "./db";
+const all = readdirSync(`${import.meta.dir}/drizzle`).sort();
+const early = mkdtempSync(`${import.meta.dir}/early-`);
+for (const d of all.filter((d) => !d.includes("recreate"))) cpSync(`${import.meta.dir}/drizzle/${d}`, `${early}/${d}`, { recursive: true });
+const fk = process.argv[2] === "fk-on";
+const prog = Effect.gen(function* () {
+  const db = yield* Drizzle.makeWithDefaults();
+  if (fk) yield* db.run(sql`PRAGMA foreign_keys = ON`);
+  yield* migrate(db, { migrationsFolder: early });
+  yield* db.run(sql`insert into turns (id, session_id, state) values (1, 's', 'queued')`);
+  yield* db.run(sql`insert into inbound_messages (platform_message_id, body, turn_id) values ('m', 'b', 1)`);
+  const exit = yield* Effect.exit(migrate(db, { migrationsFolder: `${import.meta.dir}/drizzle` }));
+  console.log(`foreign_keys=${fk ? "ON" : "OFF"}: recreate-table migration with a referencing row ->`, Exit.isSuccess(exit) ? "applied" : `FAILED: ${JSON.stringify(exit.cause, (k, v) => (k === "stack" ? undefined : v)).match(/(FOREIGN[^"]*|constraint[^"]*)/i)?.[0] ?? "?"}`);
+  const fkl: any = yield* db.all(sql`PRAGMA foreign_key_list(inbound_messages)`);
+  console.log("  inbound_messages FK now points to:", JSON.stringify(fkl.map((r: any) => r.table ?? r[2])), " foreign_key_check:", JSON.stringify(yield* db.all(sql`PRAGMA foreign_key_check`)));
+});
+await Effect.runPromise(Effect.scoped(prog).pipe(Effect.provide(sqliteLayer(":memory:"))));
+rmSync(early, { recursive: true });

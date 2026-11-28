@@ -1,0 +1,9 @@
+mode=load sync=NORMAL secs=10	  hook_ms  n=198 p50=0.20 p95=0.37 p99=0.73 max=0.79
+mode=load sync=FULL secs=10	  hook_ms  n=197 p50=0.37 p95=0.72 p99=1.16 max=2.03
+mode=load sync=FULLFSYNC secs=10	  hook_ms  n=196 p50=0.72 p95=1.36 p99=2.24 max=2.40
+mode=load sync=NORMAL secs=10	  hook_ms  n=198 p50=0.19 p95=0.37 p99=0.52 max=3.29
+mode=load sync=FULL secs=10	  hook_ms  n=198 p50=0.44 p95=0.72 p99=0.82 max=0.82
+mode=load sync=FULLFSYNC secs=10	  hook_ms  n=195 p50=0.72 p95=2.14 p99=3.48 max=9.40
+mode=load sync=NORMAL secs=10	  hook_ms  n=198 p50=0.19 p95=0.37 p99=0.44 max=0.44
+mode=load sync=FULL secs=10	  hook_ms  n=197 p50=0.33 p95=0.64 p99=1.86 max=3.85
+mode=load sync=FULLFSYNC secs=10	  hook_ms  n=195 p50=0.76 p95=1.23 p99=1.67 max=3.03

@@ -1,0 +1,18 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "p-load",
+      "dependencies": {
+        "@effect/sql-sqlite-bun": "4.1.7",
+        "effect": "4.1.7",
+      },
+    },
+  },
+  "packages": {
+    "@effect/sql-sqlite-bun": ["@effect/sql-sqlite-bun@4.1.7", "", { "peerDependencies": { "effect": "^4.1.7" } }, "sha512-bnJAUku+uZy/CWdIwoI9ua89dSPl1sFh0HkZ8qGa6rcEtrSwM1Vw1gi7qJ7DhNsHpiuaqYHo8/IA9nu1qnJIgg=="],
+
+    "effect": ["effect@4.1.7", "", {}, "sha512-8QUe2XO3auHF5r7+bfIDWxyXlLA0sso4Sia1QYP+vrYA7qb3sq1u2eJmhyXGmKc8yZ+TY2SNxPozeMdyKmWing=="],
+  }
+}

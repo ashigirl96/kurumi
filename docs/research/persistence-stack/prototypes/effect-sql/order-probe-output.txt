@@ -1,0 +1,4 @@
+NULL insert: no such table: main.turns
+insert turn_id=1 before turns exists: no such table: main.turns
+after turns created: insert turn_id=1 ok
+turn_id=2: FOREIGN KEY constraint failed

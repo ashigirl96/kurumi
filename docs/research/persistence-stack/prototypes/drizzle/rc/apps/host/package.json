@@ -1,0 +1,16 @@
+{
+  "name": "@k/host",
+  "type": "module",
+  "dependencies": {
+    "drizzle-orm": "1.0.0-rc.6",
+    "effect": "4.1.7",
+    "@effect/sql-sqlite-bun": "4.1.7",
+    "@k/turn": "workspace:*",
+    "@k/inbox": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "drizzle-kit": "1.0.0-rc.6",
+    "typescript": "7.0.2"
+  }
+}
