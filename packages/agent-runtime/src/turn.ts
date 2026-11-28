@@ -79,7 +79,13 @@ export type TurnEnd =
   | { readonly _tag: 'Failed'; readonly terminalReason: string | null }
   | {
       readonly _tag: 'Interrupted'
-      readonly reason: 'stopped' | 'timeout' | 'sandbox_exit' | 'host_stopped' | 'resume_unreadable'
+      readonly reason:
+        | 'stopped'
+        | 'timeout'
+        | 'sandbox_exit'
+        | 'host_stopped'
+        | 'host_error'
+        | 'resume_unreadable'
     }
 
 export const initialProgress: TurnProgress = {
@@ -253,6 +259,20 @@ export const runTurn = (
       inboundIds: [inbound[0].id, ...inbound.slice(1).map((m) => m.id)],
     })
     yield* executeTurn(deps, session, inbound, control, turnId).pipe(
+      // 閉じる書き込みまで失敗したら、次の起動の Recovery が閉じる。
+      Effect.catch((error) =>
+        Effect.logError('turn hit a store error', error).pipe(
+          Effect.andThen(
+            closeTurn({
+              turnId,
+              sessionId: session.id,
+              lastAssistantUuid: null,
+              ...closing(turnId, session.id, { _tag: 'Interrupted', reason: 'host_error' }),
+            }),
+          ),
+          Effect.andThen(deps.notifyOutbound),
+        ),
+      ),
       Effect.onInterrupt(() =>
         closeTurn({
           turnId,

@@ -356,6 +356,31 @@ describe('Runtime', () => {
       )
       expect(h.sandbox.spawns).toHaveLength(1)
     })
+
+    test('ターンの途中で DB に書けなくなったら interrupted で閉じて知らせ、やり直さない', async () => {
+      const h = harness(() => say('書けない最後の文'))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          const sql = yield* SqlClient.SqlClient
+          yield* sql`CREATE TRIGGER reject_final BEFORE INSERT ON outbound_messages WHEN NEW.kind = 'final' BEGIN SELECT RAISE(ABORT, 'final write failed'); END`
+          yield* runtime.receive(inbound('答えて'))
+          yield* eventually('interrupted', turnEnded('interrupted'))
+          expect((yield* allTurns)[0]?.endReason).toBe('host_error')
+          expect((yield* allInbound).map((m) => m.outcome)).toEqual(['interrupted'])
+          yield* eventually(
+            'notice delivered',
+            Effect.map(allOutbound, (rows) => rows.length === 1 && rows[0]?.state === 'delivered'),
+          )
+          yield* Effect.sleep('200 millis')
+          expect(yield* allTurns).toHaveLength(1)
+        }),
+      )
+      expect(h.delivered.map((m) => m.kind)).toEqual(['notice'])
+      expect(h.sandbox.spawns).toHaveLength(1)
+      expect(h.sandbox.alive()).toBe(0)
+    })
   })
 
   describe('実行中の受信と /stop', () => {
