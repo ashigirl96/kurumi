@@ -1,0 +1,142 @@
+HOME as Kurumi starts it: '/' uid=501
+===== home-default-npm
+$ sh -c npm config get cache && touch "$(npm config get cache)/x" 2>&1 && echo cache-writable
+/.npm
+touch: cannot touch '/.npm/x': No such file or directory
+RESULT home-default-npm breaks (exit 1): touch: cannot touch '/.npm/x': No such file or directory
+===== curl-post-issue
+$ curl -sS -f -H Authorization: Bearer kurumi-fake-turn1 -H content-type: application/json -d {"title":"from curl","body":"b"} http://api.gw/repos/a/b/issues
+{"number":7,"html_url":"https://github.com/a/b/issues/7","title":"from curl"}
+RESULT curl-post-issue works
+===== gh-http-github.localhost
+$ env GH_HOST=github.localhost GH_ENTERPRISE_TOKEN=kurumi-fake-turn1 GH_TOKEN=kurumi-fake-turn1 gh api /repos/a/b
+{"id":1,"full_name":"a/b","name":"b","owner":{"login":"a"},"private":true,"default_branch":"main"}
+RESULT gh-http-github.localhost works
+===== gh-tls-no-ca
+$ env GH_HOST=api.gw GH_ENTERPRISE_TOKEN=kurumi-fake-turn1 gh api /repos/a/b
+Get "https://api.gw/api/v3/repos/a/b": tls: failed to verify certificate: x509: certificate signed by unknown authority
+RESULT gh-tls-no-ca breaks (exit 1): Get "https://api.gw/api/v3/repos/a/b": tls: failed to verify certificate: x509: certificate signed by unknown authority
+===== gh-tls-private-ca
+$ env GH_HOST=api.gw GH_ENTERPRISE_TOKEN=kurumi-fake-turn1 gh api /repos/a/b
+{"id":1,"full_name":"a/b","name":"b","owner":{"login":"a"},"private":true,"default_branch":"main"}
+RESULT gh-tls-private-ca works
+===== gh-issue-create
+$ env GH_HOST=api.gw GH_ENTERPRISE_TOKEN=kurumi-fake-turn1 gh issue create -R api.gw/a/b --title gh title A --body gh body A
+https://github.com/a/b/issues/7
+RESULT gh-issue-create works
+===== gh-graphql-mutation
+$ env GH_HOST=api.gw GH_ENTERPRISE_TOKEN=kurumi-fake-turn1 gh api graphql -f query=mutation($t:String!){createIssue(input:{repositoryId:"R_1",title:$t}){issue{number}}} -f t=graphql title A
+{"data":{"createIssue":{"issue":{"id":"I_1","number":7,"url":"https://github.com/a/b/issues/7"}}}}
+RESULT gh-graphql-mutation works
+===== git-clone
+$ git clone https://github.com/a/b.git /tmp/b
+Cloning into '/tmp/b'...
+RESULT git-clone works
+===== git-push
+$ git push origin main
+To http://git.gw/a/b.git
+   0bec0ef..24d3efa  main -> main
+RESULT git-push works
+===== git-push-force
+$ git push --force origin main
+To http://git.gw/a/b.git
+ + 24d3efa...bf5b290 main -> main (forced update)
+RESULT git-push-force works
+===== npm-install
+$ npm install left-pad-fake --no-audit --no-fund
+
+added 1 package in 57ms
+RESULT npm-install works
+===== npm-require
+$ node -e console.log(require('left-pad-fake')('ok'))
+  ok
+RESULT npm-require works
+===== npm-publish
+$ npm publish
+npm notice 
+npm notice package: pub-fake@1.0.0
+npm notice === Tarball Contents === 
+npm notice 2B  index.js    
+npm notice 38B package.json
+npm notice === Tarball Details === 
+npm notice name:          pub-fake                                
+npm notice version:       1.0.0                                   
+npm notice filename:      pub-fake-1.0.0.tgz                      
+npm notice package size:  168 B                                   
+npm notice unpacked size: 40 B                                    
+npm notice shasum:        cdc7f6740251013a4b883606c34e56c7bfb8ceaf
+npm notice integrity:     sha512-38itKZRXdFnfk[...]291vdSckisOUA==
+npm notice total files:   2                                       
+npm notice 
+npm notice Publishing to http://npm.gw/ with tag latest and default access
++ pub-fake@1.0.0
+RESULT npm-publish works
+===== pip-install-index-only
+$ pip install --no-cache-dir --break-system-packages --target /tmp/py1 --index-url http://x:kurumi-fake-turn1@pypi.gw/simple --trusted-host pypi.gw fake-pkg
+Looking in indexes: http://x:****@pypi.gw/simple
+Collecting fake-pkg
+  WARNING: Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<pip._vendor.urllib3.connection.HTTPSConnection object at 0xffff852612b0>: Failed to establish a new connection: [Errno -3] Temporary failure in name resolution')': /packages/fa/ke/fake_pkg-1.0.0-py3-none-any.whl
+  WARNING: Retrying (Retry(total=3, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<pip._vendor.urllib3.connection.HTTPSConnection object at 0xffff854156d0>: Failed to establish a new connection: [Errno -3] Temporary failure in name resolution')': /packages/fa/ke/fake_pkg-1.0.0-py3-none-any.whl
+  WARNING: Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<pip._vendor.urllib3.connection.HTTPSConnection object at 0xffff85415950>: Failed to establish a new connection: [Errno -3] Temporary failure in name resolution')': /packages/fa/ke/fake_pkg-1.0.0-py3-none-any.whl
+  WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<pip._vendor.urllib3.connection.HTTPSConnection object at 0xffff85415bd0>: Failed to establish a new connection: [Errno -3] Temporary failure in name resolution')': /packages/fa/ke/fake_pkg-1.0.0-py3-none-any.whl
+  WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<pip._vendor.urllib3.connection.HTTPSConnection object at 0xffff85415e50>: Failed to establish a new connection: [Errno -3] Temporary failure in name resolution')': /packages/fa/ke/fake_pkg-1.0.0-py3-none-any.whl
+ERROR: Could not install packages due to an OSError: HTTPSConnectionPool(host='files.pythonhosted.org', port=443): Max retries exceeded with url: /packages/fa/ke/fake_pkg-1.0.0-py3-none-any.whl (Caused by NewConnectionError('<pip._vendor.urllib3.connection.HTTPSConnection object at 0xffff854160d0>: Failed to establish a new connection: [Errno -3] Temporary failure in name resolution'))
+RESULT pip-install-index-only breaks (exit 1): ERROR: Could not install packages due to an OSError: HTTPSConnectionPool(host='files.pythonhosted.org', port=443): Max retries exceeded with url: /packages/fa/ke/fake_pkg-1.0.0-py3-none-any.whl (Cause
+===== pip-install-gw-rewrites-links
+$ pip install --no-cache-dir --break-system-packages --target /tmp/py2 --index-url http://x:kurumi-fake-turn1@pypirw.gw/simple --trusted-host pypirw.gw --trusted-host files.gw fake-pkg
+Looking in indexes: http://x:****@pypirw.gw/simple
+Collecting fake-pkg
+  Downloading http://files.gw/packages/fa/ke/fake_pkg-1.0.0-py3-none-any.whl (982 bytes)
+Installing collected packages: fake-pkg
+Successfully installed fake-pkg-1.0.0
+RESULT pip-install-gw-rewrites-links works
+===== claude-model-call
+$ claude_run say hi --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions
+init: mcp_servers= []
+result: success "FINAL used= last_tool_result=-"
+RESULT claude-model-call works
+===== webfetch-http-default
+$ claude_run WEBFETCH_URL=http://docs.gw/page fetch it --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions
+init: mcp_servers= []
+tool_use: ToolSearch {"query":"select:WebFetch","max_results":5}
+tool_result: [{"type":"tool_reference","tool_name":"WebFetch"}]
+tool_use: WebFetch {"url":"http://docs.gw/page","prompt":"Return the marker on the page."}
+tool_result: "Unable to verify if domain docs.gw is safe to fetch. This may be due to network restrictions or enterprise security policies blocking claude.ai."
+result: success "FINAL used=ToolSearch,WebFetch last_tool_result=[{\"type\":\"tool_result\",\"content\":\"Unable to verify if domain docs.gw is safe to fetch. This may be due to network restrictions or enterprise security policies blocking claude.ai.\",\"is_error\":true,\"tool_use_id\":\"toolu_4188d32d0552474fbd5e8b1e\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]"
+RESULT webfetch-http-default breaks (exit 0): result: success "FINAL used=ToolSearch,WebFetch last_tool_result=[{\"type\":\"tool_result\",\"content\":\"Unable to verify if domain docs.gw is safe to fetch. This may be due to network restrictions o
+===== webfetch-http-skip-preflight
+$ claude_run WEBFETCH_URL=http://docs.gw/page fetch it --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions --settings {"skipWebFetchPreflight":true}
+init: mcp_servers= []
+tool_use: ToolSearch {"query":"select:WebFetch","max_results":5}
+tool_result: [{"type":"tool_reference","tool_name":"WebFetch"}]
+tool_use: WebFetch {"url":"http://docs.gw/page","prompt":"Return the marker on the page."}
+tool_result: "unable to verify the first certificate"
+result: success "FINAL used=ToolSearch,WebFetch last_tool_result=[{\"type\":\"tool_result\",\"content\":\"unable to verify the first certificate\",\"is_error\":true,\"tool_use_id\":\"toolu_0e9bef0af959432686996df4\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]"
+RESULT webfetch-http-skip-preflight breaks (exit 0): result: success "FINAL used=ToolSearch,WebFetch last_tool_result=[{\"type\":\"tool_result\",\"content\":\"unable to verify the first certificate\",\"is_error\":true,\"tool_use_id\":\"toolu_0e9bef0af95
+===== webfetch-https-gw-ca-skip-preflight
+$ env NODE_EXTRA_CA_CERTS=/certs/client-gw-bundle.crt sh -c . /scripts/lib.sh; claude_run "WEBFETCH_URL=https://docs.gw/page fetch it" --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions --settings "{\"skipWebFetchPreflight\":true}"
+init: mcp_servers= []
+tool_use: ToolSearch {"query":"select:WebFetch","max_results":5}
+tool_result: [{"type":"tool_reference","tool_name":"WebFetch"}]
+tool_use: WebFetch {"url":"https://docs.gw/page","prompt":"Return the marker on the page."}
+tool_result: "SUMMARY marker-present=true"
+result: success "FINAL used=ToolSearch,WebFetch last_tool_result=[{\"tool_use_id\":\"toolu_e0c9d3be1555458d89591d0c\",\"type\":\"tool_result\",\"content\":\"SUMMARY marker-present=true\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]"
+RESULT webfetch-https-gw-ca-skip-preflight works
+===== webfetch-other-host
+$ claude_run WEBFETCH_URL=https://docs.example.com/page fetch it --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions --settings {"skipWebFetchPreflight":true}
+init: mcp_servers= []
+tool_use: ToolSearch {"query":"select:WebFetch","max_results":5}
+tool_result: [{"type":"tool_reference","tool_name":"WebFetch"}]
+tool_use: WebFetch {"url":"https://docs.example.com/page","prompt":"Return the marker on the page."}
+tool_result: "getaddrinfo EAI_AGAIN docs.example.com"
+result: success "FINAL used=ToolSearch,WebFetch last_tool_result=[{\"type\":\"tool_result\",\"content\":\"getaddrinfo EAI_AGAIN docs.example.com\",\"is_error\":true,\"tool_use_id\":\"toolu_08fdd79520cb4a59a63fa775\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]"
+RESULT webfetch-other-host breaks (exit 0): result: success "FINAL used=ToolSearch,WebFetch last_tool_result=[{\"type\":\"tool_result\",\"content\":\"getaddrinfo EAI_AGAIN docs.example.com\",\"is_error\":true,\"tool_use_id\":\"toolu_08fdd79520c
+===== mcp-remote-http
+$ claude_run USE_MCP call the echo tool --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions --mcp-config {"mcpServers":{"fake":{"type":"http","url":"http://mcp.gw/mcp","headers":{"Authorization":"Bearer kurumi-fake-turn1"}}}}
+init: mcp_servers= [{"name":"fake","status":"connected","source":"dynamic"}]
+tool_use: ToolSearch {"query":"select:mcp__fake__echo","max_results":5}
+tool_result: [{"type":"tool_reference","tool_name":"mcp__fake__echo"}]
+tool_use: mcp__fake__echo {"text":"hello from the fake model"}
+tool_result: [{"type":"text","text":"MCP-ECHO {\"text\":\"hello from the fake model\"}"}]
+result: success "FINAL used=ToolSearch,mcp__fake__echo last_tool_result=[{\"tool_use_id\":\"toolu_0e85f871501946f9a09eb794\",\"type\":\"tool_result\",\"content\":[{\"type\":\"text\",\"text\":\"MCP-ECHO {\\\"text\\\":\\\"hello from the fake model\\\"}\"}],\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]"
+RESULT mcp-remote-http works

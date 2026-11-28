@@ -1,0 +1,301 @@
+[
+  {
+    "id": "P1",
+    "what": "allowed GET /repos/a/b/issues with the turn token",
+    "status": "HTTP/1.1 200 OK",
+    "body": "[]",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /repos/a/b/issues auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "P2",
+    "what": "model route POST /v1/messages",
+    "status": "HTTP/1.1 200 OK",
+    "body": "{\"id\":\"msg_7576749df1b34f96b1ac57c30b0b3f15\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-haiku-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"Lint finished, no problems found.\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input",
+    "canaryInResponse": false,
+    "upstream": [
+      "POST /v1/messages auth=Bearer <CANARY_MODEL>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "T1",
+    "what": "no token",
+    "status": "HTTP/1.1 401 Unauthorized",
+    "body": "not a registered turn token",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "T2",
+    "what": "unregistered token with the kurumi-fake- prefix",
+    "status": "HTTP/1.1 401 Unauthorized",
+    "body": "not a registered turn token",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "E14",
+    "what": "no token on a listener whose apiKey mode is omitted (agentgateway :8082)",
+    "status": "error: connect ECONNREFUSED 10.251.11.40:8082",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D1",
+    "what": "disallowed method DELETE on an allowed path",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D2",
+    "what": "disallowed path GET /user",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D3",
+    "what": "U8: broker-gated POST /repos/a/b/issues through the wire",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D4",
+    "what": "U8: broker-gated GraphQL mutation through the wire",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D5",
+    "what": "U8: broker-gated POST /gists through the wire",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D6",
+    "what": "dot-segment escape GET /repos/a/b/../../../user",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D7",
+    "what": "encoded dot-segment GET /repos/a/b/%2e%2e/%2e%2e/%2e%2e/user",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D8",
+    "what": "encoded slash GET /repos/a/b/..%2f..%2f..%2fuser",
+    "status": "HTTP/1.1 400 Bad Request",
+    "body": "ambiguous path",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D9",
+    "what": "HEAD on an allowed path (only GET allowed)",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O1",
+    "what": "absolute-URI to the sink",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O2",
+    "what": "Host header names the sink",
+    "status": "HTTP/1.1 200 OK",
+    "body": "[]",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /repos/a/b/issues auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "O3",
+    "what": "CONNECT to the sink",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O4",
+    "what": "scheme-relative target //sink.test/O4",
+    "status": "HTTP/1.1 400 Bad Request",
+    "body": "ambiguous path",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O5",
+    "what": "h2c prior knowledge",
+    "status": "HTTP/1.1 400 Bad Request",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "L1",
+    "what": "echo endpoint on the allowed host reflects request headers",
+    "status": "HTTP/1.1 200 OK",
+    "body": "{\"method\":\"GET\",\"url\":\"https://localhost:18443/echo?probe=mg-host-L1\",\"headers\":{\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"authorization\":\"Bearer [REDACTED]\",\"connection\":\"keep-alive\",\"host\":\"localhost:18443\",\"user-agent\":",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /echo auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "L2",
+    "what": "echo base64-encoded (scrubber bypass)",
+    "status": "HTTP/1.1 200 OK",
+    "body": "eyJtZXRob2QiOiJHRVQiLCJ1cmwiOiJodHRwczovL2xvY2FsaG9zdDoxODQ0My9lY2hvP2VuYz1iNjQmcHJvYmU9bWctaG9zdC1MMiIsImhlYWRlcnMiOnsiYWNjZXB0IjoiKi8qIiwiYWNjZXB0LWVuY29kaW5nIjoiZ3ppcCwgZGVmbGF0ZSwgYnIsIHpzdGQiLCJhdXRob3JpemF0aW9uIjoiQmVhcmVyIENBTkFSWV9S",
+    "canaryInResponse": false,
+    "canaryAfterBase64Decode": true,
+    "upstream": [
+      "GET /echo auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "L3",
+    "what": "redirect to the sink: does the gateway follow it with the credential?",
+    "status": "HTTP/1.1 302 Found",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /redirect auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "L4",
+    "what": "redirect to the echo on the same host",
+    "status": "HTTP/1.1 302 Found",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /redirect auth=Bearer <CANARY_GH>"
+    ],
+    "followed": [],
+    "sink": []
+  },
+  {
+    "id": "C2",
+    "what": "admin :15000 /config_dump",
+    "status": "error: connect ECONNREFUSED 10.251.11.40:15000",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C3",
+    "what": "stats :15020 /metrics",
+    "status": "error: connect ECONNREFUSED 10.251.11.40:15020",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C4",
+    "what": "readiness :15021 /healthz/ready",
+    "status": "error: connect ECONNREFUSED 10.251.11.40:15021",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C5",
+    "what": "minimal gateway admin :9901 /register (no secret)",
+    "status": "error: connect ECONNREFUSED 10.251.11.40:9901",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C1",
+    "what": "TCP scan of kh1-fwd",
+    "ports": {
+      "22": "ECONNREFUSED",
+      "80": "ECONNREFUSED",
+      "443": "ECONNREFUSED",
+      "8080": "open",
+      "8081": "open",
+      "8082": "ECONNREFUSED",
+      "9090": "ECONNREFUSED",
+      "9091": "ECONNREFUSED",
+      "9901": "ECONNREFUSED",
+      "15000": "ECONNREFUSED",
+      "15001": "ECONNREFUSED",
+      "15020": "ECONNREFUSED",
+      "15021": "ECONNREFUSED",
+      "18080": "ECONNREFUSED",
+      "18081": "ECONNREFUSED"
+    },
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C6",
+    "what": "minimal gateway admin on its control-network address 10.251.10.30:9901",
+    "status": "error: connect ECONNREFUSED 10.251.10.30:9901",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "G1",
+    "what": "canary grep over env, /proc/*/environ|cmdline, /cfg, /work, /tmp, /etc, /root, /home",
+    "hits": [],
+    "envHasCanary": false,
+    "upstream": [],
+    "sink": []
+  }
+]

@@ -1,0 +1,41 @@
+
+### egress probes from inside the container (Mac only)
+relay (expected open) kp-gw:8080 -> CONNECTED
+relay other port kp-gw:22 -> blocked
+fake upstream by name (not on the internal network) kp-upstream:9000 -> blocked
+fake upstream by IP 10.250.77.2:9000 -> blocked
+exfil sink by IP 10.250.77.80:80 -> blocked
+internet IP 1.1.1.1:443 -> blocked
+host.docker.internal (host listener) host.docker.internal:56946 -> blocked
+Docker Desktop host gateway 192.168.65.254 192.168.65.254:56946 -> blocked
+internal network gateway IP 172.24.0.1:56946 -> blocked
+Mac interface IP (LAN, Tailscale; redacted) <host-ip-0>:56946 -> blocked
+Mac interface IP (LAN, Tailscale; redacted) <host-ip-1>:56946 -> blocked
+cloud metadata 169.254.169.254:80 -> blocked
+--- docker socket
+ls: cannot access '/var/run/docker.sock': No such file or directory
+ls: cannot access '/run/docker.sock': No such file or directory
+--- routes
+eth0 000018AC 00000000
+--- ipv6 addrs
+00000000000000000000000000000001 01 80 10 80       lo
+--- ipv6 routes
+00000000000000000000000000000000 00 00000000000000000000000000000000 00 00000000000000000000000000000000 ffffffff 00000001 00000000 00200200       lo
+00000000000000000000000000000001 80 00000000000000000000000000000000 00 00000000000000000000000000000000 00000000 00000004 00000000 80200001       lo
+00000000000000000000000000000000 00 00000000000000000000000000000000 00 00000000000000000000000000000000 ffffffff 00000001 00000000 00200200       lo
+--- interfaces
+bonding_masters
+erspan0
+eth0
+gre0
+gretap0
+ip6_vti0
+ip6gre0
+ip6tnl0
+ip_vti0
+lo
+sit0
+tunl0
+--- canary grep over env, /proc/*/environ, /cfg, /work
+0
+done

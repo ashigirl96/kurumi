@@ -1,0 +1,247 @@
+
+### ag: lifecycle
+{
+  "gateway": "ag",
+  "replayAfterTurnEnd": {
+    "turn1OwnToken": "HTTP/1.1 200 OK",
+    "turn2ReplaysTurn1Token_then_ownToken": [
+      "HTTP/1.1 401 Unauthorized\r",
+      "HTTP/1.1 200 OK"
+    ]
+  },
+  "revocationLatency": {
+    "samples": [
+      {
+        "callToFirst401Ms": 356.3,
+        "returnToFirst401Ms": 289.1,
+        "revokeCallMs": 67.2
+      },
+      {
+        "callToFirst401Ms": 297,
+        "returnToFirst401Ms": 245.3,
+        "revokeCallMs": 51.7
+      },
+      {
+        "callToFirst401Ms": 298.7,
+        "returnToFirst401Ms": 247.7,
+        "revokeCallMs": 51
+      },
+      {
+        "callToFirst401Ms": 358.1,
+        "returnToFirst401Ms": 301.1,
+        "revokeCallMs": 57
+      },
+      {
+        "callToFirst401Ms": 364,
+        "returnToFirst401Ms": 303.5,
+        "revokeCallMs": 60.5
+      }
+    ],
+    "medianCallToFirst401Ms": 356.3
+  },
+  "inflightStream": {
+    "revokedAtMs": 1201,
+    "end": "completed",
+    "chunksAfterRevoke": 8,
+    "chunks": [
+      "+506ms chunk 1 at 2026-11-28T13:15:36.642Z",
+      "+1005ms chunk 2 at 2026-11-28T13:15:37.143Z",
+      "+1509ms chunk 3 at 2026-11-28T13:15:37.647Z",
+      "+2015ms chunk 4 at 2026-11-28T13:15:38.152Z",
+      "+2521ms chunk 5 at 2026-11-28T13:15:38.658Z",
+      "+3022ms chunk 6 at 2026-11-28T13:15:39.159Z",
+      "+3527ms chunk 7 at 2026-11-28T13:15:39.664Z",
+      "+4029ms chunk 8 at 2026-11-28T13:15:40.166Z",
+      "+4530ms chunk 9 at 2026-11-28T13:15:40.668Z",
+      "+5036ms chunk 10 at 2026-11-28T13:15:41.174Z"
+    ]
+  },
+  "hostKill": {
+    "killedAt": "2026-11-28T13:15:41.817Z",
+    "containerAfter4s": "Up 4 seconds",
+    "statusesInThe4sAfterKill": {
+      "200": 15
+    },
+    "firstLinesAfterKill": [
+      "2026-11-28T13:15:42.065Z 200",
+      "2026-11-28T13:15:42.319Z 200",
+      "2026-11-28T13:15:42.573Z 200"
+    ],
+    "restartedAt": "2026-11-28T13:15:45.871Z",
+    "statusesAfterHostRestartRevokesAll": {
+      "200": 2,
+      "401": 7
+    }
+  }
+}
+AbortError: The operation was aborted.
+DOMException {
+  line: 21,
+  column: 14,
+  sourceURL: "~/.ghq/src/github.com/ashigirl96/kurumi/.claude/worktrees/luminous-percolating-teapot/docs/research/agent-boundary/prototypes/h1-gateways/gateway/kurumi-gw.ts",
+  stack: "abort@[native code]\nrevoke@~/.ghq/src/github.com/ashigirl96/kurumi/.claude/worktrees/luminous-percolating-teapot/docs/research/agent-boundary/prototypes/h1-gateways/gateway/kurumi-gw.ts:21:14\nrevoke@~/.ghq/src/github.com/ashigirl96/kurumi/.claude/worktrees/luminous-percolating-teapot/docs/research/agent-boundary/prototypes/h1-gateways/scripts/gateways.ts:68:35\nmodule code@~/.ghq/src/github.com/ashigirl96/kurumi/.claude/worktrees/luminous-percolating-teapot/docs/research/agent-boundary/prototypes/h1-gateways/scripts/lifecycle.ts:61:18",
+  code: 20,
+  name: "AbortError",
+  message: "The operation was aborted.",
+  INDEX_SIZE_ERR: 1,
+  DOMSTRING_SIZE_ERR: 2,
+  HIERARCHY_REQUEST_ERR: 3,
+  WRONG_DOCUMENT_ERR: 4,
+  INVALID_CHARACTER_ERR: 5,
+  NO_DATA_ALLOWED_ERR: 6,
+  NO_MODIFICATION_ALLOWED_ERR: 7,
+  NOT_FOUND_ERR: 8,
+  NOT_SUPPORTED_ERR: 9,
+  INUSE_ATTRIBUTE_ERR: 10,
+  INVALID_STATE_ERR: 11,
+  SYNTAX_ERR: 12,
+  INVALID_MODIFICATION_ERR: 13,
+  NAMESPACE_ERR: 14,
+  INVALID_ACCESS_ERR: 15,
+  VALIDATION_ERR: 16,
+  TYPE_MISMATCH_ERR: 17,
+  SECURITY_ERR: 18,
+  NETWORK_ERR: 19,
+  ABORT_ERR: 20,
+  URL_MISMATCH_ERR: 21,
+  QUOTA_EXCEEDED_ERR: 22,
+  TIMEOUT_ERR: 23,
+  INVALID_NODE_TYPE_ERR: 24,
+  DATA_CLONE_ERR: 25,
+  toString: [Function: toString],
+}
+      at ~/.ghq/src/github.com/ashigirl96/kurumi/.claude/worktrees/luminous-percolating-teapot/docs/research/agent-boundary/prototypes/h1-gateways/gateway/kurumi-gw.ts:21
+
+### mg-host: lifecycle
+{
+  "gateway": "mg-host",
+  "replayAfterTurnEnd": {
+    "turn1OwnToken": "HTTP/1.1 200 OK",
+    "turn2ReplaysTurn1Token_then_ownToken": [
+      "HTTP/1.1 401 Unauthorized\r",
+      "HTTP/1.1 200 OK"
+    ]
+  },
+  "revocationLatency": {
+    "samples": [
+      {
+        "callToFirst401Ms": 0.3,
+        "returnToFirst401Ms": 0.3,
+        "revokeCallMs": 0
+      },
+      {
+        "callToFirst401Ms": 0.2,
+        "returnToFirst401Ms": 0.2,
+        "revokeCallMs": 0
+      },
+      {
+        "callToFirst401Ms": 0.2,
+        "returnToFirst401Ms": 0.2,
+        "revokeCallMs": 0
+      },
+      {
+        "callToFirst401Ms": 0.1,
+        "returnToFirst401Ms": 0.1,
+        "revokeCallMs": 0
+      },
+      {
+        "callToFirst401Ms": 0.1,
+        "returnToFirst401Ms": 0.1,
+        "revokeCallMs": 0
+      }
+    ],
+    "medianCallToFirst401Ms": 0.2
+  },
+  "inflightStream": {
+    "revokedAtMs": 1201,
+    "end": "error: ECONNRESET: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+    "chunksAfterRevoke": 0,
+    "chunks": [
+      "+512ms chunk 1 at",
+      "+1009ms 2026-11-28T13:15:50.253Z\nchunk 2 at"
+    ]
+  },
+  "hostKill": {
+    "killedAt": "2026-11-28T13:15:51.233Z",
+    "containerAfter4s": "Up 4 seconds",
+    "statusesInThe4sAfterKill": {
+      "ERR TypeError": 15
+    },
+    "firstLinesAfterKill": [
+      "2026-11-28T13:15:51.485Z ERR TypeError",
+      "2026-11-28T13:15:51.740Z ERR TypeError",
+      "2026-11-28T13:15:51.996Z ERR TypeError"
+    ],
+    "restartedAt": "2026-11-28T13:15:55.279Z",
+    "statusesAfterHostRestartRevokesAll": {
+      "ERR TypeError": 8
+    }
+  }
+}
+
+### mg-ctr: lifecycle
+{
+  "gateway": "mg-ctr",
+  "replayAfterTurnEnd": {
+    "turn1OwnToken": "HTTP/1.1 200 OK",
+    "turn2ReplaysTurn1Token_then_ownToken": [
+      "HTTP/1.1 401 Unauthorized\r",
+      "HTTP/1.1 200 OK"
+    ]
+  },
+  "revocationLatency": {
+    "samples": [
+      {
+        "callToFirst401Ms": 0.8,
+        "returnToFirst401Ms": 0.3,
+        "revokeCallMs": 0.5
+      },
+      {
+        "callToFirst401Ms": 0.5,
+        "returnToFirst401Ms": 0.1,
+        "revokeCallMs": 0.4
+      },
+      {
+        "callToFirst401Ms": 0.7,
+        "returnToFirst401Ms": 0.3,
+        "revokeCallMs": 0.5
+      },
+      {
+        "callToFirst401Ms": 0.6,
+        "returnToFirst401Ms": 0.2,
+        "revokeCallMs": 0.4
+      },
+      {
+        "callToFirst401Ms": 0.4,
+        "returnToFirst401Ms": 0,
+        "revokeCallMs": 0.4
+      }
+    ],
+    "medianCallToFirst401Ms": 0.6
+  },
+  "inflightStream": {
+    "revokedAtMs": 1201,
+    "end": "error: ECONNRESET: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+    "chunksAfterRevoke": 0,
+    "chunks": [
+      "+506ms chunk 1 at",
+      "+1008ms 2026-11-28T13:15:59.591Z\nchunk 2 at"
+    ]
+  },
+  "hostKill": {
+    "killedAt": "2026-11-28T13:16:00.576Z",
+    "containerAfter4s": "Up 4 seconds",
+    "statusesInThe4sAfterKill": {
+      "200": 15
+    },
+    "firstLinesAfterKill": [
+      "2026-11-28T13:16:00.826Z 200",
+      "2026-11-28T13:16:01.081Z 200",
+      "2026-11-28T13:16:01.337Z 200"
+    ],
+    "restartedAt": "2026-11-28T13:16:04.619Z",
+    "statusesAfterHostRestartRevokesAll": {
+      "401": 8
+    }
+  }
+}

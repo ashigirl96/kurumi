@@ -1,0 +1,298 @@
+inspected==forwarded: 18/18 gateway-captured writes arrived at the fake with an identical body sha256
+
+### gh-issue-A  (raw sha256 329b9551d147b16f, canonical 329b9551d147b16f, 1 write request(s))
+{
+ "method_path": "POST api.gw/api/graphql",
+ "graphql": {
+  "operation": "mutation",
+  "name": "IssueCreate",
+  "root_field": "createIssue",
+  "variables": {
+   "input": {
+    "body": "approved body",
+    "repositoryId": "R_1",
+    "title": "approved title"
+   }
+  }
+ }
+}
+### gh-issue-B  (raw sha256 7b141a3a4b1287b4, canonical 7b141a3a4b1287b4, 1 write request(s))
+{
+ "method_path": "POST api.gw/api/graphql",
+ "graphql": {
+  "operation": "mutation",
+  "name": "IssueCreate",
+  "root_field": "createIssue",
+  "variables": {
+   "input": {
+    "body": "swapped body",
+    "repositoryId": "R_1",
+    "title": "swapped title"
+   }
+  }
+ }
+}
+### gql-A  (raw sha256 99353b8aee68ab90, canonical 99353b8aee68ab90, 1 write request(s))
+{
+ "method_path": "POST api.gw/api/graphql",
+ "graphql": {
+  "operation": "mutation",
+  "name": "",
+  "root_field": "createIssue",
+  "variables": {
+   "t": "approved title"
+  }
+ }
+}
+### gql-B  (raw sha256 19db8e651b7f2674, canonical 19db8e651b7f2674, 1 write request(s))
+{
+ "method_path": "POST api.gw/api/graphql",
+ "graphql": {
+  "operation": "mutation",
+  "name": "",
+  "root_field": "createIssue",
+  "variables": {
+   "t": "swapped title"
+  }
+ }
+}
+### gql-B-op  (raw sha256 20feb7c826939bef, canonical 20feb7c826939bef, 1 write request(s))
+{
+ "method_path": "POST api.gw/api/graphql",
+ "graphql": {
+  "operation": "mutation",
+  "name": "",
+  "root_field": "deleteRepository",
+  "variables": {
+   "id": "R_1"
+  }
+ }
+}
+### git-A  (raw sha256 b61b3cbc9d117725, canonical fb5183dca7a67f37, 1 write request(s))
+{
+ "method_path": "POST git.gw/a/b.git/git-receive-pack",
+ "git_receive_pack": {
+  "commands": [
+   {
+    "old": "cb81181835e8",
+    "new": "fba63f6c3679",
+    "ref": "refs/heads/main",
+    "caps": [
+     "report-status-v2",
+     "side-band-64k",
+     "quiet",
+     "object-format=sha1"
+    ],
+    "new_commit_message": "approved commit",
+    "new_parents": [
+     "cb81181835e8"
+    ],
+    "update_kind": "fast-forward (provable from the pack)"
+   }
+  ],
+  "pack_objects": [
+   "commit",
+   "tree",
+   "blob"
+  ],
+  "pack_sha256": "e4a7298c14ad7325"
+ }
+}
+### git-B-ref  (raw sha256 d027faaafd7048a1, canonical 0cb43cf7e3a76af4, 1 write request(s))
+{
+ "method_path": "POST git.gw/a/b.git/git-receive-pack",
+ "git_receive_pack": {
+  "commands": [
+   {
+    "old": "000000000000",
+    "new": "0926acb98c96",
+    "ref": "refs/heads/release",
+    "caps": [
+     "report-status-v2",
+     "side-band-64k",
+     "quiet",
+     "object-format=sha1"
+    ],
+    "new_commit_message": "second commit",
+    "new_parents": [
+     "fba63f6c3679"
+    ],
+    "update_kind": "create"
+   }
+  ],
+  "pack_objects": [
+   "commit",
+   "ref-delta",
+   "blob"
+  ],
+  "pack_sha256": "4cbb3ee132c314b1"
+ }
+}
+### git-B-force  (raw sha256 47c4649159d1c057, canonical a427cb340d26e9c6, 1 write request(s))
+{
+ "method_path": "POST git.gw/a/b.git/git-receive-pack",
+ "git_receive_pack": {
+  "commands": [
+   {
+    "old": "fba63f6c3679",
+    "new": "0221893f8d71",
+    "ref": "refs/heads/main",
+    "caps": [
+     "report-status-v2",
+     "side-band-64k",
+     "quiet",
+     "object-format=sha1"
+    ],
+    "new_commit_message": "rewritten history",
+    "new_parents": [
+     "cb81181835e8"
+    ],
+    "update_kind": "not provable from the pack: force or needs the upstream graph"
+   }
+  ],
+  "pack_objects": [
+   "commit",
+   "tree",
+   "blob"
+  ],
+  "pack_sha256": "3150a7654e4d0eb1"
+ }
+}
+### mp-A  (raw sha256 bf70449c4f5f703f, canonical 628e96a28941aae1, 1 write request(s))
+{
+ "method_path": "POST echo.gw/upload",
+ "multipart": {
+  "boundary": "------------------------DEmWqMOW3Hdrq4EyMYcTo3",
+  "parts": [
+   {
+    "name": "note",
+    "filename": null,
+    "size": 2,
+    "sha256": "676b8bb84ce7267d"
+   },
+   {
+    "name": "file",
+    "filename": "report.txt",
+    "size": 13,
+    "sha256": "0dd429de2622c52b"
+   }
+  ]
+ }
+}
+### mp-A-again  (raw sha256 f08683f97aafb962, canonical 628e96a28941aae1, 1 write request(s))
+{
+ "method_path": "POST echo.gw/upload",
+ "multipart": {
+  "boundary": "------------------------LInSkcQggBsjk6dR760NXZ",
+  "parts": [
+   {
+    "name": "note",
+    "filename": null,
+    "size": 2,
+    "sha256": "676b8bb84ce7267d"
+   },
+   {
+    "name": "file",
+    "filename": "report.txt",
+    "size": 13,
+    "sha256": "0dd429de2622c52b"
+   }
+  ]
+ }
+}
+### mp-B  (raw sha256 8417b045f4f6878f, canonical 9a658bc5cf314b87, 1 write request(s))
+{
+ "method_path": "POST echo.gw/upload",
+ "multipart": {
+  "boundary": "------------------------CuvXxi1BimHt1vr7sIVa09",
+  "parts": [
+   {
+    "name": "note",
+    "filename": null,
+    "size": 2,
+    "sha256": "676b8bb84ce7267d"
+   },
+   {
+    "name": "file",
+    "filename": "report.txt",
+    "size": 13,
+    "sha256": "38d50b19c4b0223b"
+   }
+  ]
+ }
+}
+### gz-A  (raw sha256 e19ee99666b23e49, canonical 5846b74ac2af3392, 1 write request(s))
+{
+ "method_path": "POST api.gw/repos/a/b/issues",
+ "content-encoding": "gzip",
+ "json": {
+  "title": "approved title",
+  "body": "x"
+ }
+}
+### gz-A-again  (raw sha256 e2e2c5c50111656d, canonical 5846b74ac2af3392, 1 write request(s))
+{
+ "method_path": "POST api.gw/repos/a/b/issues",
+ "content-encoding": "gzip",
+ "json": {
+  "title": "approved title",
+  "body": "x"
+ }
+}
+### gz-B  (raw sha256 8de7ae7ed2676055, canonical b92fcbe2ea30bdc4, 1 write request(s))
+{
+ "method_path": "POST api.gw/repos/a/b/issues",
+ "content-encoding": "gzip",
+ "json": {
+  "title": "swapped title",
+  "body": "x"
+ }
+}
+### chunk-A  (raw sha256 687e930ef82145fb, canonical 5846b74ac2af3392, 1 write request(s))
+{
+ "method_path": "POST api.gw/repos/a/b/issues",
+ "transfer-encoding": "chunked",
+ "json": {
+  "title": "approved title",
+  "body": "x"
+ }
+}
+### chunk-B  (raw sha256 54762b22ea8e3d85, canonical b92fcbe2ea30bdc4, 1 write request(s))
+{
+ "method_path": "POST api.gw/repos/a/b/issues",
+ "transfer-encoding": "chunked",
+ "json": {
+  "title": "swapped title",
+  "body": "x"
+ }
+}
+### json-A-reordered  (raw sha256 a767b1ec5723cc35, canonical 5846b74ac2af3392, 1 write request(s))
+{
+ "method_path": "POST api.gw/repos/a/b/issues",
+ "json": {
+  "body": "x",
+  "title": "approved title"
+ }
+}
+### json-A  (raw sha256 687e930ef82145fb, canonical 5846b74ac2af3392, 1 write request(s))
+{
+ "method_path": "POST api.gw/repos/a/b/issues",
+ "json": {
+  "title": "approved title",
+  "body": "x"
+ }
+}
+
+| approved | then sent | same method+path? | method/path binder | raw-bytes digest binder | canonical-body binder |
+|---|---|---|---|---|---|
+| gh-issue-A | gh-issue-B | yes | misses the swap (allows B) | catches the swap | catches the swap |
+| gql-A | gql-B | yes | misses the swap (allows B) | catches the swap | catches the swap |
+| gql-A | gql-B-op | yes | misses the swap (allows B) | catches the swap | catches the swap |
+| git-A | git-B-ref | yes | misses the swap (allows B) | catches the swap | catches the swap |
+| git-A | git-B-force | yes | misses the swap (allows B) | catches the swap | catches the swap |
+| mp-A | mp-B | yes | misses the swap (allows B) | catches the swap | catches the swap |
+| gz-A | gz-B | yes | misses the swap (allows B) | catches the swap | catches the swap |
+| chunk-A | chunk-B | yes | misses the swap (allows B) | catches the swap | catches the swap |
+| mp-A | mp-A-again | yes | accepts the re-send | rejects the same intent (false positive) | accepts the re-send |
+| gz-A | gz-A-again | yes | accepts the re-send | rejects the same intent (false positive) | accepts the re-send |
+| json-A | json-A-reordered | yes | accepts the re-send | rejects the same intent (false positive) | accepts the re-send |

@@ -1,0 +1,45 @@
+# iron-proxy 0.61.0, MITM via the tunnel listener (clients use HTTPS_PROXY). Inject mode: clients need
+# no real credential; the proxy sets the header on every request to a credentialed host.
+dns:
+  enabled: false
+proxy:
+  http_listen: ":80"
+  https_listen: ":443"
+  tunnel_listen: ":8080"
+  max_request_body_bytes: 1048576
+  upstream_response_header_timeout: "30s"
+tls:
+  mode: "mitm"
+  ca_cert: "/certs/iron-ca.crt"
+  ca_key: "/certs/iron-ca.key"
+transforms:
+  - name: allowlist
+    config:
+      domains:
+        - "api.github.com"
+        - "github.com"
+        - "registry.npmjs.org"
+        - "pypi.org"
+        - "files.pythonhosted.org"
+        - "mcp.example.com"
+        - "docs.example.com"
+        - "echo.example.com"
+        - "api.anthropic.com"
+        - "holdup.example"
+  - name: secrets
+    config:
+      secrets:
+        - source: {type: env, var: CANARY_REAL}
+          inject: {header: "Authorization", formatter: "Bearer {{ .Value }}"}
+          rules:
+            - host: "api.github.com"
+            - host: "registry.npmjs.org"
+            - host: "mcp.example.com"
+            - host: "echo.example.com"
+            - host: "api.anthropic.com"
+        - source: {type: env, var: CANARY_REAL}
+          inject: {header: "Authorization", formatter: 'Basic {{ base64 "x-access-token:" .Value }}'}
+          rules:
+            - host: "github.com"
+log:
+  level: "info"

@@ -1,0 +1,6 @@
+authz listening on :9001, sleeps 960s
+2026-11-28T12:48:32.833Z authz check POST /check body=approve-me
+2026-11-28T12:48:32.833Z authz check POST /check body=approve-me
+2026-11-28T12:48:34.837Z authz caller aborted after 2.004s
+2026-11-28T12:48:34.840Z authz answering 200 after 2.007s (caller gone=true)
+2026-11-28T13:04:33.473Z authz answering 200 after 960.64s (caller gone=false)

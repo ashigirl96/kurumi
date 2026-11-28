@@ -1,0 +1,10 @@
+START 1795869473
+npm ERR! code FETCH_ERROR
+npm ERR! errno FETCH_ERROR
+npm ERR! network timeout at: http://npm.gw/left-pad-fake
+
+npm ERR! A complete log of this run can be found in:
+npm ERR!     /tmp/.npm/_logs/2026-11-28T12_37_54_013Z-debug-0.log
+
+END 1795870444 exit=1
+container_state_at_collection=exited

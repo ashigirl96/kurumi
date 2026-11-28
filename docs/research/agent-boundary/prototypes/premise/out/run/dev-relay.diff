@@ -1,0 +1,4 @@
+5c5
+< const upstream = 'https://api.anthropic.com'
+---
+> const upstream = process.env['UPSTREAM'] ?? 'https://api.anthropic.com'

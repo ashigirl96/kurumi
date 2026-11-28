@@ -1,0 +1,11 @@
+# Built by setup.sh or fetched by the slices.
+*/repo/
+*/dl/
+node_modules
+# Regenerated on every run: throwaway keys and certs, the lab admin secret, per-run session data.
+*/out/pki/
+*/out/certs/
+*.key
+*/out/run/admin-secret
+*/out/sess-*/
+*/out/data-*/

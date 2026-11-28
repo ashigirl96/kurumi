@@ -1,0 +1,61 @@
+binds:
+- port: 8080
+  listeners:
+  - protocol: HTTP
+    routes:
+    - name: model
+      matches:
+      - path: { exact: /v1/messages }
+        method: POST
+      - path: { exact: /v1/messages/count_tokens }
+        method: POST
+      policies:
+        apiKey:
+          mode: strict
+          keys: []
+        backendAuth: { key: CANARY_REAL_MODEL_8d2f60a1e93c }
+      backends:
+      - host: model.test:9000
+- port: 8081
+  listeners:
+  - protocol: HTTP
+    routes:
+    - name: github-read
+      matches:
+      - path: { pathPrefix: /repos/a/b/ }
+        method: GET
+      - path: { exact: /echo }
+        method: GET
+      - path: { exact: /redirect }
+        method: GET
+      - path: { exact: /slow }
+        method: GET
+      policies:
+        apiKey:
+          mode: strict
+          keys: []
+        backendAuth: { key: CANARY_REAL_GH_4b7e19d2c6a0 }
+        backendTLS: { root: /pki/ca.crt, hostname: api.github.test }
+      backends:
+      - host: api.github.test:443
+- port: 8082
+  listeners:
+  - protocol: HTTP
+    routes:
+    - name: github-read-mode-omitted
+      matches:
+      - path: { pathPrefix: /repos/a/b/ }
+        method: GET
+      - path: { exact: /echo }
+        method: GET
+      - path: { exact: /redirect }
+        method: GET
+      - path: { exact: /slow }
+        method: GET
+      policies:
+        apiKey:
+          keys: []
+        backendAuth: { key: CANARY_REAL_GH_4b7e19d2c6a0 }
+        backendTLS: { root: /pki/ca.crt, hostname: api.github.test }
+      backends:
+      - host: api.github.test:443

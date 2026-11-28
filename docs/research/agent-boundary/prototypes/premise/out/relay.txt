@@ -1,0 +1,103 @@
+
+### probe responses as seen inside the container
+=== R1 any path, any method (DELETE /v1/organizations/x) with a turn-shaped token
+HTTP/1.1 200 OK
+Content-Type: application/json;charset=utf-8
+Date: Sat, 28 Nov 2026 13:14:55 GMT
+Content-Length: 308
+
+{"echo":{"method":"DELETE","url":"http://kp-upstream:9000/v1/organizations/x","headers":{"accept":"*/*","accept-encoding":"gzip, deflate, br, zstd","authorization":"Bearer CANARY_REAL_9f1c2e7a5b3d","connection":"keep-alive","content-length":"0","host":"kp-upstream:9000","user-agent":"Bun/1.4.4"},"body":""}}
+=== R2a token never registered, only the prefix matches
+HTTP/1.1 200 OK
+Content-Type: application/json;charset=utf-8
+Date: Sat, 28 Nov 2026 13:14:55 GMT
+Content-Length: 269
+
+{"echo":{"method":"GET","url":"http://kp-upstream:9000/r2a","headers":{"accept":"*/*","accept-encoding":"gzip, deflate, br, zstd","authorization":"Bearer CANARY_REAL_9f1c2e7a5b3d","connection":"keep-alive","host":"kp-upstream:9000","user-agent":"Bun/1.4.4"},"body":""}}
+=== R2b no token
+HTTP/1.1 401 Unauthorized
+content-type: text/plain;charset=utf-8
+Date: Sat, 28 Nov 2026 13:14:56 GMT
+Content-Length: 12
+
+unauthorized
+=== R3 absolute-URI to another host
+HTTP/1.1 200 OK
+Content-Type: application/json;charset=utf-8
+Date: Sat, 28 Nov 2026 13:14:55 GMT
+Content-Length: 277
+
+{"echo":{"method":"GET","url":"http://kp-upstream:9000/r3-absolute","headers":{"accept":"*/*","accept-encoding":"gzip, deflate, br, zstd","authorization":"Bearer CANARY_REAL_9f1c2e7a5b3d","connection":"keep-alive","host":"kp-upstream:9000","user-agent":"Bun/1.4.4"},"body":""}}
+=== R4 Host mismatch
+HTTP/1.1 200 OK
+Content-Type: application/json;charset=utf-8
+Date: Sat, 28 Nov 2026 13:14:55 GMT
+Content-Length: 273
+
+{"echo":{"method":"GET","url":"http://kp-upstream:9000/r4-host","headers":{"accept":"*/*","accept-encoding":"gzip, deflate, br, zstd","authorization":"Bearer CANARY_REAL_9f1c2e7a5b3d","connection":"keep-alive","host":"kp-upstream:9000","user-agent":"Bun/1.4.4"},"body":""}}
+=== R5 CONNECT
+HTTP/1.1 502 Bad Gateway
+content-type: text/plain;charset=utf-8
+Date: Sat, 28 Nov 2026 13:14:56 GMT
+Content-Length: 14
+
+upstream error
+=== R6 scheme-relative and userinfo targets
+HTTP/1.1 200 OK
+Content-Type: application/json;charset=utf-8
+Date: Sat, 28 Nov 2026 13:14:59 GMT
+Content-Length: 278
+
+{"echo":{"method":"GET","url":"http://kp-upstream:9000/kp-sink/r6-a","headers":{"accept":"*/*","accept-encoding":"gzip, deflate, br, zstd","authorization":"Bearer CANARY_REAL_9f1c2e7a5b3d","connection":"keep-alive","host":"kp-upstream:9000","user-agent":"Bun/1.4.4"},"body":""}}
+=== R7 extra headers pass through (x-api-key, cookie, x-forwarded-host)
+HTTP/1.1 200 OK
+Content-Type: application/json;charset=utf-8
+Date: Sat, 28 Nov 2026 13:14:59 GMT
+Content-Length: 339
+
+{"echo":{"method":"GET","url":"http://kp-upstream:9000/r7","headers":{"accept":"*/*","accept-encoding":"gzip, deflate, br, zstd","authorization":"Bearer CANARY_REAL_9f1c2e7a5b3d","connection":"keep-alive","cookie":"a=b","host":"kp-upstream:9000","user-agent":"Bun/1.4.4","x-api-key":"attacker-key","x-forwarded-host":"kp-sink"},"body":""}}
+=== R8 h2c prior knowledge
+HTTP/1.1 400 Bad Request
+Connection: close
+
+
+=== R9 dot-segments
+HTTP/1.1 200 OK
+Content-Type: application/json;charset=utf-8
+Date: Sat, 28 Nov 2026 13:14:59 GMT
+Content-Length: 273
+
+{"echo":{"method":"GET","url":"http://kp-upstream:9000/r9-dots","headers":{"accept":"*/*","accept-encoding":"gzip, deflate, br, zstd","authorization":"Bearer CANARY_REAL_9f1c2e7a5b3d","connection":"keep-alive","host":"kp-upstream:9000","user-agent":"Bun/1.4.4"},"body":""}}
+
+### canary visible inside the container
+true
+
+### relay log
+relay listening on :8080
+POST /v1/messages/count_tokens -> 200
+GET /after-deny -> 200
+POST /v1/messages -> 200
+GET /from-bash -> 200
+DELETE /v1/organizations/x -> 200
+GET /r2a -> 200
+GET /r2b -> 401 not a turn token
+GET /r3-absolute -> 200
+GET /r4-host -> 200
+CONNECT 80 -> upstream error TypeError
+GET //kp-sink/r6-a -> 200
+GET /r7 -> 200
+GET /r9-dots -> 200
+
+### fake upstream log (method url auth extra-headers)
+[
+  "DELETE http://kp-upstream:9000/v1/organizations/x auth=Bearer CANARY_REAL_9f1c2e7a5b3d host=kp-upstream:9000 x-api-key=- cookie=- xfh=-",
+  "GET http://kp-upstream:9000/r2a auth=Bearer CANARY_REAL_9f1c2e7a5b3d host=kp-upstream:9000 x-api-key=- cookie=- xfh=-",
+  "GET http://kp-upstream:9000/r3-absolute auth=Bearer CANARY_REAL_9f1c2e7a5b3d host=kp-upstream:9000 x-api-key=- cookie=- xfh=-",
+  "GET http://kp-upstream:9000/r4-host auth=Bearer CANARY_REAL_9f1c2e7a5b3d host=kp-upstream:9000 x-api-key=- cookie=- xfh=-",
+  "GET http://kp-upstream:9000/kp-sink/r6-a auth=Bearer CANARY_REAL_9f1c2e7a5b3d host=kp-upstream:9000 x-api-key=- cookie=- xfh=-",
+  "GET http://kp-upstream:9000/r7 auth=Bearer CANARY_REAL_9f1c2e7a5b3d host=kp-upstream:9000 x-api-key=attacker-key cookie=a=b xfh=kp-sink",
+  "GET http://kp-upstream:9000/r9-dots auth=Bearer CANARY_REAL_9f1c2e7a5b3d host=kp-upstream:9000 x-api-key=- cookie=- xfh=-"
+]
+
+### sink log (should stay empty)
+(empty)

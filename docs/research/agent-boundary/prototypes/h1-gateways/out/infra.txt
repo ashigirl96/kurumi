@@ -1,0 +1,9 @@
+kh1-iron Up 2 seconds
+kh1-fwd Up 2 seconds
+kh1-mg Up 2 seconds
+kh1-ag Up 2 seconds
+kh1-dns Up 3 seconds
+kh1-sink Up 3 seconds
+kh1-model Up 3 seconds
+kh1-gh Up 3 seconds
+infra up

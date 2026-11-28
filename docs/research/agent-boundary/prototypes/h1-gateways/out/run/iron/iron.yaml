@@ -1,0 +1,35 @@
+dns:
+  listen: ":53"
+  proxy_ip: "10.251.11.50"
+  passthrough: ["*.pass.test"]
+proxy:
+  http_listen: ":80"
+  https_listen: ":443"
+  tunnel_listen: ":8080"
+tls:
+  mode: "mitm"
+  ca_cert: "/pki/iron-ca.crt"
+  ca_key: "/pki/iron-ca.key"
+transforms:
+  - name: allowlist
+    config:
+      rules:
+        - host: "api.github.test"
+          methods: ["GET"]
+          paths: ["/repos/a/b/*", "/echo", "/redirect"]
+        - host: "api.github.test"
+          methods: ["POST"]
+          paths: ["/echo"]
+  - name: secrets
+    config:
+      secrets:
+        - source: { type: env, var: GH_REAL }
+          replace:
+            proxy_value: "kurumi-fake-iron-static"
+            match_headers: ["Authorization"]
+            match_body: true
+            require: true
+          rules:
+            - host: "api.github.test"
+log:
+  level: "info"

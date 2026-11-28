@@ -1,0 +1,7 @@
+port 80 started 1795870112 ended 1795870114: authorization failed http=403 t=2.011339
+port 3002 started 1795870112 ended 1795871073: {"method":"POST","path":"/x","len":10,"sha256":"15f21448f659cf23e03be649a3bde3c3a423ec8144de1711a6339780cb752d9d"} http=200 t=960.659597
+2026-11-28T12:48:32.833Z authz check POST /check body=approve-me
+2026-11-28T12:48:32.833Z authz check POST /check body=approve-me
+2026-11-28T12:48:34.837Z authz caller aborted after 2.004s
+2026-11-28T12:48:34.840Z authz answering 200 after 2.007s (caller gone=true)
+2026-11-28T13:04:33.473Z authz answering 200 after 960.64s (caller gone=false)

@@ -1,0 +1,28 @@
+2026-11-28T13:19:22.753977Z	info	agentgateway_app::commands::run	version: 1.7.0	
+2026-11-28T13:19:22.781592Z	warn	config	failed to write generated session key	err=failed to write to file `/agw.yaml`: Read-only file system (os error 30) path=/agw.yaml
+2026-11-28T13:19:22.781741Z	warn	config	no session key configured; MCP session IDs are not encrypted. Set SESSION_KEY or config.session.key	
+2026-11-28T13:19:22.783479Z	info	management::hyper_helpers	listener disabled	component="readiness"
+2026-11-28T13:19:22.792255Z	info	state_manager	loaded config from File("/agw.yaml")	
+2026-11-28T13:19:22.792727Z	info	state_manager	Watching config file: /agw.yaml	
+2026-11-28T13:19:22.794080Z	info	agent_core::readiness	Task 'state manager' complete (40.524959ms), still awaiting 1 tasks	
+2026-11-28T13:19:22.794440Z	info	app	serving UI at http://off/ui	
+2026-11-28T13:19:22.794453Z	info	agent_core::readiness	Task 'agentgateway' complete (40.898709ms), marking server ready	
+2026-11-28T13:19:22.794455Z	info	management::hyper_helpers	listener disabled	component="admin"
+2026-11-28T13:19:22.794457Z	info	management::hyper_helpers	listener disabled	component="stats"
+2026-11-28T13:19:22.794530Z	info	proxy::gateway	started bind	bind="bind/3001"
+2026-11-28T13:19:22.794542Z	info	proxy::gateway	started bind	bind="bind/80"
+2026-11-28T13:19:26.016559Z	info	request gateway=default/default listener=allow route=default/gql-allow endpoint=api.github.com:443 src.addr=172.25.0.3:42130 http.method=POST http.host=agw http.path=/graphql http.version=HTTP/1.1 http.status=200 protocol=http duration=7ms
+2026-11-28T13:19:26.023163Z	error	request gateway=default/default listener=allow route=default/gql-allow src.addr=172.25.0.3:42144 http.method=POST http.host=agw http.path=/graphql http.version=HTTP/1.1 http.status=403 protocol=http error="authorization failed" reason=Authorization duration=0ms
+2026-11-28T13:19:26.030485Z	info	request gateway=default/default listener=allow route=default/gql-allow endpoint=api.github.com:443 src.addr=172.25.0.3:42146 http.method=POST http.host=agw http.path=/graphql http.version=HTTP/1.1 http.status=200 protocol=http duration=0ms
+2026-11-28T13:19:26.036942Z	info	request gateway=default/default listener=allow route=default/gql-allow endpoint=api.github.com:443 src.addr=172.25.0.3:42150 http.method=POST http.host=agw http.path=/graphql http.version=HTTP/1.1 http.status=200 protocol=http duration=0ms
+2026-11-28T13:19:26.042325Z	error	request gateway=default/default listener=allow route=default/gql-allow src.addr=172.25.0.3:42156 http.method=POST http.host=agw http.path=/graphql http.version=HTTP/1.1 http.status=403 protocol=http error="authorization failed" reason=Authorization duration=0ms
+2026-11-28T13:19:26.047961Z	error	request gateway=default/default listener=allow route=default/gql-allow src.addr=172.25.0.3:42170 http.method=POST http.host=agw http.path=/graphql http.version=HTTP/1.1 http.status=403 protocol=http error="authorization failed" reason=Authorization duration=0ms
+2026-11-28T13:19:26.053171Z	error	request gateway=default/default listener=allow route=default/gql-allow src.addr=172.25.0.3:42174 http.method=POST http.host=agw http.path=/graphql http.version=HTTP/1.1 http.status=403 protocol=http error="authorization failed" reason=Authorization duration=0ms
+2026-11-28T13:19:26.058487Z	info	request gateway=default/default listener=allow route=default/gql-allow endpoint=api.github.com:443 src.addr=172.25.0.3:42186 http.method=POST http.host=agw http.path=/graphql http.version=HTTP/1.1 http.status=200 protocol=http duration=0ms
+2026-11-28T13:19:26.063075Z	error	request gateway=default/default listener=deny route=default/gql-deny src.addr=172.25.0.3:43742 http.method=POST http.host=agw http.path=/graphql http.version=HTTP/1.1 http.status=403 protocol=http error="authorization failed" reason=Authorization duration=0ms
+2026-11-28T13:19:26.067804Z	error	request gateway=default/default listener=deny route=default/gql-deny src.addr=172.25.0.3:43746 http.method=POST http.host=agw http.path=/graphql http.version=HTTP/1.1 http.status=403 protocol=http error="authorization failed" reason=Authorization duration=0ms
+2026-11-28T13:19:26.073919Z	info	request gateway=default/default listener=deny route=default/gql-deny endpoint=api.github.com:443 src.addr=172.25.0.3:43762 http.method=POST http.host=agw http.path=/graphql http.version=HTTP/1.1 http.status=200 protocol=http duration=1ms
+2026-11-28T13:19:26.079735Z	info	request gateway=default/default listener=deny route=default/gql-deny endpoint=api.github.com:443 src.addr=172.25.0.3:43770 http.method=POST http.host=agw http.path=/graphql http.version=HTTP/1.1 http.status=200 protocol=http duration=0ms
+2026-11-28T13:19:26.114066Z	info	request gateway=default/default listener=allow route=default/gql-allow endpoint=api.github.com:443 src.addr=172.25.0.3:42194 http.method=POST http.host=api.github.localhost http.path=/graphql http.version=HTTP/1.1 http.status=200 protocol=http duration=0ms
+2026-11-28T13:19:26.145128Z	error	request gateway=default/default listener=allow route=default/gql-allow src.addr=172.25.0.3:42204 http.method=POST http.host=api.github.localhost http.path=/graphql http.version=HTTP/1.1 http.status=403 protocol=http error="authorization failed" reason=Authorization duration=0ms
+2026-11-28T13:19:26.177736Z	error	request gateway=default/default listener=allow route=default/gql-allow src.addr=172.25.0.3:42212 http.method=POST http.host=api.github.localhost http.path=/graphql http.version=HTTP/1.1 http.status=403 protocol=http error="authorization failed" reason=Authorization duration=0ms

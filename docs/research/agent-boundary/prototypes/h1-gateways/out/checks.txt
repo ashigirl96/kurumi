@@ -1,0 +1,43 @@
+REPRODUCED  ag: allowed read reaches the upstream with the injected credential
+REPRODUCED  ag: no token / unregistered token -> 401
+REPRODUCED  ag: disallowed method/path and U8 broker-gated writes never reach the upstream
+REPRODUCED  ag: no open proxy, redirects not followed
+REPRODUCED  ag: base64-encoded echo returns the real credential
+REPRODUCED  ag: no canary in env, /proc, files
+REPRODUCED  mg-host: allowed read reaches the upstream with the injected credential
+REPRODUCED  mg-host: no token / unregistered token -> 401
+REPRODUCED  mg-host: disallowed method/path and U8 broker-gated writes never reach the upstream
+REPRODUCED  mg-host: no open proxy, redirects not followed
+REPRODUCED  mg-host: base64-encoded echo returns the real credential
+REPRODUCED  mg-host: no canary in env, /proc, files
+REPRODUCED  mg-ctr: allowed read reaches the upstream with the injected credential
+REPRODUCED  mg-ctr: no token / unregistered token -> 401
+REPRODUCED  mg-ctr: disallowed method/path and U8 broker-gated writes never reach the upstream
+REPRODUCED  mg-ctr: no open proxy, redirects not followed
+REPRODUCED  mg-ctr: base64-encoded echo returns the real credential
+REPRODUCED  mg-ctr: no canary in env, /proc, files
+REPRODUCED  ag: dot-segment paths escape the pathPrefix route and reach GET /user with the credential
+REPRODUCED  mg: dot-segment paths are refused
+REPRODUCED  ag: plain echo returns the real credential (no response scrubbing)
+REPRODUCED  mg: plain echo is scrubbed
+REPRODUCED  ag: apiKey with mode omitted lets a keyless request through with the credential (E14)
+REPRODUCED  ag: stats 15020 and readiness 15021 reachable from the container, admin 15000 not
+REPRODUCED  mg: only the two data-plane ports reachable
+REPRODUCED  ag: turn-1 token replayed in turn 2 -> 401
+REPRODUCED  mg-host: turn-1 token replayed in turn 2 -> 401
+REPRODUCED  mg-ctr: turn-1 token replayed in turn 2 -> 401
+REPRODUCED  ag: revocation takes 356.3 ms (file reload)
+REPRODUCED  mg: revocation effective on the next request
+REPRODUCED  ag: a stream open at revocation runs to completion
+REPRODUCED  mg: revocation cuts open streams
+REPRODUCED  ag, mg-ctr: after a host SIGKILL the old container keeps getting 200 until a restarted host empties the registry
+REPRODUCED  mg-host: after a host SIGKILL the gateway is gone with it (no 200)
+REPRODUCED  iron: DNS mode works; HTTPS_PROXY tunnel refused when the allowlist uses method/path rules
+REPRODUCED  iron: SNI/Host mismatch and dot segments 400, non-allowlisted CONNECT/absolute-form/host 403
+REPRODUCED  iron: echo returns the real credential (E2)
+REPRODUCED  iron: a 2 MiB body is forwarded truncated to 1 MiB (E1)
+REPRODUCED  iron: a proxy token in the body is swapped for the real secret and sent upstream
+REPRODUCED  iron: exfil names answered locally; only passthrough names reach the upstream resolver (E3)
+REPRODUCED  broker hook mode: swapped args and a reused approval execute with the real credential
+REPRODUCED  broker handler mode: nothing executes that the human did not see and approve
+REPRODUCED  broker handler mode: the approved args re-sent execute twice (two prompts, two side effects)
