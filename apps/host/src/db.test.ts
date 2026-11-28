@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { AgentRuntimeDb, saveInbound } from '@kurumi/agent-runtime/store'
-import { Effect, Exit } from 'effect'
+import { Cause, Effect, Exit } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { dbLayer } from './db.ts'
@@ -94,10 +94,17 @@ describe('dbLayer startup', () => {
     raw.run(
       "INSERT INTO inbound_messages (channel, conversation, platform_message_id, sender, body, received_at, turn_id) VALUES ('c', 'v', 'm', 's', 'b', 0, 999)",
     )
+    const rowid = raw
+      .query<{ rowid: number }, []>('SELECT max(rowid) AS rowid FROM inbound_messages')
+      .get()?.rowid
     raw.close()
     const exit = await Effect.runPromiseExit(Effect.void.pipe(Effect.provide(dbLayer(file))))
-    expect(Exit.isFailure(exit)).toBe(true)
-    expect(String(exit)).toContain('ForeignKeyViolations')
+    if (!Exit.isFailure(exit)) throw new Error('start succeeded')
+    const seen = Cause.pretty(exit.cause)
+    expect(seen).toContain('ForeignKeyViolations')
+    expect(seen).toContain('inbound_messages')
+    expect(seen).toContain(`rowid ${rowid}`)
+    expect(seen).toContain('turns')
   })
 
   test('a table-rebuild migration passes over rows that reference the rebuilt table', async () => {

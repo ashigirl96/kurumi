@@ -13,9 +13,22 @@ export type PackageMigrations = {
 
 export const packageMigrations: readonly PackageMigrations[] = [agentRuntimeMigrations]
 
+type ForeignKeyViolation = {
+  readonly table: string
+  readonly rowid: number | null
+  readonly parent: string
+  readonly fkid: number
+}
+
 export class ForeignKeyViolations extends Data.TaggedError('ForeignKeyViolations')<{
-  readonly rows: readonly unknown[]
-}> {}
+  readonly rows: readonly ForeignKeyViolation[]
+}> {
+  override get message() {
+    return this.rows
+      .map((r) => `\n  ${r.table} rowid ${r.rowid} references a missing row in ${r.parent}`)
+      .join('')
+  }
+}
 
 const startup = (migrations: readonly PackageMigrations[]) =>
   Effect.gen(function* () {
@@ -26,7 +39,7 @@ const startup = (migrations: readonly PackageMigrations[]) =>
     const db = yield* Drizzle.makeWithDefaults()
     for (const m of migrations) yield* migrate(db, m)
     yield* sql`PRAGMA foreign_keys = ON`
-    const rows = yield* sql`PRAGMA foreign_key_check`
+    const rows = yield* sql<ForeignKeyViolation>`PRAGMA foreign_key_check`
     if (rows.length > 0) yield* new ForeignKeyViolations({ rows })
   })
 
