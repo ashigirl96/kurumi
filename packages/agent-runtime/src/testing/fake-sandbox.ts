@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -27,6 +27,8 @@ export type FakeSandbox = Sandbox & {
   readonly disposed: TurnSandbox[]
   /** n 番目（0 始まり）に起こした子プロセスの合図 */
   gate(n: number): Gate
+  /** n 番目（0 始まり）の CLI が標準入力から受け取った行（JSON として読めたもの） */
+  received(n: number): unknown[]
   /** 次の `dispose` を、`release` が呼ばれるまで子プロセスを殺す前で止める */
   holdDispose(): { entered: Promise<void>; release: () => void }
   alive(): number
@@ -93,6 +95,15 @@ export const fakeSandbox = (scriptFor: (n: number) => Script): FakeSandbox => {
       },
       release: (name) => writeFileSync(join(dirOf(n), `${name}.go`), ''),
     }),
+    received: (n) => {
+      const file = join(dirOf(n), 'received.jsonl')
+      return existsSync(file)
+        ? readFileSync(file, 'utf8')
+            .split('\n')
+            .filter((line) => line !== '')
+            .map((line): unknown => JSON.parse(line))
+        : []
+    },
     holdDispose: () => {
       const entered = Promise.withResolvers<void>()
       const released = Promise.withResolvers<void>()

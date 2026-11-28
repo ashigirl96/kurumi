@@ -489,6 +489,7 @@ const interrupt = (requestId: string, cancelQueued: boolean) => {
 
 const onLine = (line: string) => {
   if (state.exiting) return
+  appendFileSync(join(signalDir, 'received.jsonl'), `${line}\n`)
   const msg = Incoming.parse(JSON.parse(line))
   if (msg.type === 'user') {
     const uuid = msg.uuid ?? crypto.randomUUID()
