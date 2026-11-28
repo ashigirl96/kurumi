@@ -21,6 +21,7 @@ setInterval(() => {}, 2 ** 30)
 const main = Effect.runFork(Layer.launch(app))
 main.addObserver((exit) => {
   const stopped = Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)
+  if (Exit.isFailure(exit) && !stopped) console.error(Cause.pretty(exit.cause))
   process.exit(stopped ? 0 : 1)
 })
 for (const signal of ['SIGINT', 'SIGTERM']) {
