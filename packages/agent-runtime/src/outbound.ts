@@ -32,23 +32,25 @@ export const makeOutbox = (
         if (until <= now) backoffUntil.delete(sessionId)
       const next = yield* claimNextOutbound([...backoffUntil.keys()])
       if (!next) {
-        return yield* backoffUntil.size === 0
+        yield* backoffUntil.size === 0
           ? Queue.take(wake)
           : Effect.raceFirst(Queue.take(wake), Effect.sleep(retryDelay))
+        return
       }
       const deliver = channels[next.channel]
       const exit = yield* (
         deliver ? deliver(next) : Effect.fail(new Error(`unknown channel: ${next.channel}`))
       ).pipe(Effect.timeout(deliverTimeout), Effect.exit)
-      // 届いた行を配達し直さないよう、記録だけをやり直す。
-      if (Exit.isSuccess(exit))
-        return yield* markDelivered(next.id).pipe(
-          Effect.tapError((error) => Effect.logWarning(`outbound ${next.id} not marked`, error)),
-          Effect.retry(Schedule.spaced(retryDelay)),
-        )
-      yield* releaseOutbound(next.id)
-      backoffUntil.set(next.sessionId, Date.now() + Duration.toMillis(retryDelay))
-      return yield* Effect.logWarning(`outbound ${next.id} was not delivered`, exit.cause)
+      // 配達し直しも取りこぼしもしないよう、記録だけをやり直す。
+      const record = Exit.isSuccess(exit) ? markDelivered(next.id) : releaseOutbound(next.id)
+      yield* record.pipe(
+        Effect.tapError((error) => Effect.logWarning(`outbound ${next.id} not recorded`, error)),
+        Effect.retry(Schedule.spaced(retryDelay)),
+      )
+      if (Exit.isFailure(exit)) {
+        backoffUntil.set(next.sessionId, Date.now() + Duration.toMillis(retryDelay))
+        yield* Effect.logWarning(`outbound ${next.id} was not delivered`, exit.cause)
+      }
     })
 
     const run = deliverOne.pipe(

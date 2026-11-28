@@ -316,6 +316,37 @@ describe('Runtime', () => {
     expect(succeeded).toEqual(['別の会話の答え', '止まった会話の答え'])
   })
 
+  test('配達に失敗した後に pending へ戻せなくても、戻せるようになったら配達し直される', async () => {
+    let attempts = 0
+    const succeeded: string[] = []
+    const h = harness(() => say('戻してから届く'), {
+      deliver: (m) =>
+        Effect.suspend(() => {
+          attempts++
+          if (attempts === 1) return Effect.fail(new Error('チャンネルが落ちている'))
+          succeeded.push(m.body)
+          return Effect.void
+        }),
+    })
+    await run(
+      h,
+      Effect.gen(function* () {
+        const runtime = yield* Runtime
+        const sql = yield* SqlClient.SqlClient
+        yield* sql`CREATE TRIGGER reject_release BEFORE UPDATE OF state ON outbound_messages WHEN OLD.state = 'sending' AND NEW.state = 'pending' BEGIN SELECT RAISE(ABORT, 'release failed'); END`
+        yield* runtime.receive(inbound('届けて'))
+        yield* eventually(
+          'first attempt failed',
+          Effect.sync(() => attempts === 1),
+        )
+        yield* Effect.sleep('200 millis')
+        yield* sql`DROP TRIGGER reject_release`
+        yield* deliveredRows(1)
+      }),
+    )
+    expect(succeeded).toEqual(['戻してから届く'])
+  })
+
   test('配達の後に delivered を書けなくても、配達し直さず、書けるようになったら delivered になる', async () => {
     const h = harness(() => say('一度だけ届く'))
     await run(
