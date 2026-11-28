@@ -424,7 +424,7 @@ describe('起動時の復旧', () => {
                 Effect.all([allTurns, allOutbound]),
                 ([turns, out]) =>
                   turns.length === 2 &&
-                  turns.every((t) => t.state !== 'running') &&
+                  turns.every((t) => t.endedAt !== null) &&
                   out.length === 3 &&
                   out.every((o) => o.state === 'delivered'),
               ),
