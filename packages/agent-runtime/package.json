@@ -5,7 +5,8 @@
   "exports": {
     "./schema": "./src/schema.ts",
     "./store": "./src/store.ts",
-    "./migrations": "./src/migrations.ts"
+    "./migrations": "./src/migrations.ts",
+    "./sandbox": "./src/sandbox.ts"
   },
   "scripts": {
     "generate": "drizzle-kit generate"
