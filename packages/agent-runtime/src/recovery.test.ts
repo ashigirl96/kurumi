@@ -290,7 +290,7 @@ describe('起動時の復旧', () => {
 
   test('ホストを止めると子プロセスが残らず、次の起動でもそのターンの知らせは 1 つだけ', async () => {
     const h = harness(() => parked())
-    await onSharedDb(h, (boot) =>
+    await onSharedDb(h, (boot, db) =>
       Effect.gen(function* () {
         yield* boot(
           Effect.gen(function* () {
@@ -300,6 +300,8 @@ describe('起動時の復旧', () => {
           }),
         )
         expect(h.sandbox.alive()).toBe(0)
+        const [stopped] = yield* allTurns.pipe(Effect.provide(db))
+        expect(stopped).toMatchObject({ state: 'interrupted', endReason: 'host_stopped' })
         yield* boot(
           Effect.gen(function* () {
             yield* eventually(
