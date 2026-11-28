@@ -1,0 +1,15 @@
+2026-11-28T12:48:29.656708Z	info	agentgateway_app::commands::run	version: 1.7.0	
+2026-11-28T12:48:29.685356Z	warn	config	failed to write generated session key	err=failed to write to file `/agw.yaml`: Read-only file system (os error 30) path=/agw.yaml
+2026-11-28T12:48:29.685602Z	warn	config	no session key configured; MCP session IDs are not encrypted. Set SESSION_KEY or config.session.key	
+2026-11-28T12:48:29.688317Z	info	management::hyper_helpers	listener disabled	component="readiness"
+2026-11-28T12:48:29.698847Z	info	state_manager	loaded config from File("/agw.yaml")	
+2026-11-28T12:48:29.699219Z	info	state_manager	Watching config file: /agw.yaml	
+2026-11-28T12:48:29.700671Z	info	agent_core::readiness	Task 'state manager' complete (44.433084ms), still awaiting 1 tasks	
+2026-11-28T12:48:29.700989Z	info	app	serving UI at http://off/ui	
+2026-11-28T12:48:29.701006Z	info	agent_core::readiness	Task 'agentgateway' complete (44.768834ms), marking server ready	
+2026-11-28T12:48:29.701008Z	info	management::hyper_helpers	listener disabled	component="admin"
+2026-11-28T12:48:29.701011Z	info	management::hyper_helpers	listener disabled	component="stats"
+2026-11-28T12:48:29.701115Z	info	proxy::gateway	started bind	bind="bind/3002"
+2026-11-28T12:48:29.701136Z	info	proxy::gateway	started bind	bind="bind/80"
+2026-11-28T12:48:34.835971Z	error	request gateway=default/default listener=default-timeouts route=default/echo src.addr=172.27.0.3:45824 http.method=POST http.host=agw http.path=/x http.version=HTTP/1.1 http.status=403 protocol=http error="external authorization failed" reason=ExtAuth duration=2004ms
+2026-11-28T13:04:33.488815Z	info	request gateway=default/default listener=raised-timeouts route=default/echo endpoint=echo.example.com:443 src.addr=172.27.0.3:55604 http.method=POST http.host=agw http.path=/x http.version=HTTP/1.1 http.status=200 protocol=http duration=960656ms

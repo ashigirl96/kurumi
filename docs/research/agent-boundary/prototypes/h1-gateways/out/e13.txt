@@ -1,0 +1,60 @@
+
+### E13 containers (sink = a bare Bun HTTP server, the baseline)
+[
+  {
+    "container": "kh1-ag",
+    "pid1": "agentgateway-li",
+    "startToReadyMs": [
+      246,
+      246,
+      248
+    ],
+    "idleRssMiB": 23.9,
+    "dockerStatsMem": "31.73MiB / 46.96GiB"
+  },
+  {
+    "container": "kh1-mg",
+    "pid1": "bun",
+    "startToReadyMs": [
+      183,
+      213,
+      225
+    ],
+    "idleRssMiB": 19,
+    "dockerStatsMem": "3.703MiB / 46.96GiB"
+  },
+  {
+    "container": "kh1-iron",
+    "pid1": "iron-proxy",
+    "startToReadyMs": [
+      199,
+      218,
+      180
+    ],
+    "idleRssMiB": 32.2,
+    "dockerStatsMem": "37.23MiB / 46.96GiB"
+  },
+  {
+    "container": "kh1-sink",
+    "pid1": "bun",
+    "startToReadyMs": [
+      163,
+      118,
+      159
+    ],
+    "idleRssMiB": 15.1,
+    "dockerStatsMem": "3.32MiB / 46.96GiB"
+  }
+]
+
+### E13 in-process gateway (fresh bun process: RSS before import vs after listening)
+{"importAndListenMs":3,"rssDeltaMiB":0.4,"rssTotalMiB":5.3}
+
+### config and code size
+{
+  "agentgatewayConfigLines_oneKey": 64,
+  "ironProxyConfigLines": 35,
+  "minimalGatewayLoc_total": 121,
+  "devRelayLoc_startingPoint": 49,
+  "hostGlue_agConfigWriterLoc": 70
+}

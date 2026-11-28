@@ -1,0 +1,1033 @@
+
+### ag: probes (container view) joined with what the upstream and the sink logged
+[
+  {
+    "id": "P1",
+    "what": "allowed GET /repos/a/b/issues with the turn token",
+    "status": "HTTP/1.1 200 OK",
+    "body": "[]",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /repos/a/b/issues auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "P2",
+    "what": "model route POST /v1/messages",
+    "status": "HTTP/1.1 200 OK",
+    "body": "{\"id\":\"msg_ce210a51f9f0414c9a051b6f90cb86d3\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-haiku-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"Lint finished, no problems found.\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input",
+    "canaryInResponse": false,
+    "upstream": [
+      "POST /v1/messages auth=Bearer <CANARY_MODEL>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "T1",
+    "what": "no token",
+    "status": "HTTP/1.1 401 Unauthorized",
+    "body": "authentication failed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "T2",
+    "what": "unregistered token with the kurumi-fake- prefix",
+    "status": "HTTP/1.1 401 Unauthorized",
+    "body": "authentication failed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "E14",
+    "what": "no token on a listener whose apiKey mode is omitted (agentgateway :8082)",
+    "status": "HTTP/1.1 200 OK",
+    "body": "[]",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /repos/a/b/issues auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "D1",
+    "what": "disallowed method DELETE on an allowed path",
+    "status": "HTTP/1.1 404 Not Found",
+    "body": "route not found",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D2",
+    "what": "disallowed path GET /user",
+    "status": "HTTP/1.1 404 Not Found",
+    "body": "route not found",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D3",
+    "what": "U8: broker-gated POST /repos/a/b/issues through the wire",
+    "status": "HTTP/1.1 404 Not Found",
+    "body": "route not found",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D4",
+    "what": "U8: broker-gated GraphQL mutation through the wire",
+    "status": "HTTP/1.1 404 Not Found",
+    "body": "route not found",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D5",
+    "what": "U8: broker-gated POST /gists through the wire",
+    "status": "HTTP/1.1 404 Not Found",
+    "body": "route not found",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D6",
+    "what": "dot-segment escape GET /repos/a/b/../../../user",
+    "status": "HTTP/1.1 200 OK",
+    "body": "{\"login\":\"canary-user\"}",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /user auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "D7",
+    "what": "encoded dot-segment GET /repos/a/b/%2e%2e/%2e%2e/%2e%2e/user",
+    "status": "HTTP/1.1 200 OK",
+    "body": "{\"login\":\"canary-user\"}",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /user auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "D8",
+    "what": "encoded slash GET /repos/a/b/..%2f..%2f..%2fuser",
+    "status": "HTTP/1.1 404 Not Found",
+    "body": "{\"message\":\"Not Found\"}",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /repos/a/b/..%2f..%2f..%2fuser auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "D9",
+    "what": "HEAD on an allowed path (only GET allowed)",
+    "status": "HTTP/1.1 404 Not Found",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O1",
+    "what": "absolute-URI to the sink",
+    "status": "HTTP/1.1 404 Not Found",
+    "body": "route not found",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O2",
+    "what": "Host header names the sink",
+    "status": "HTTP/1.1 200 OK",
+    "body": "[]",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /repos/a/b/issues auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "O3",
+    "what": "CONNECT to the sink",
+    "status": "HTTP/1.1 405 Method Not Allowed",
+    "body": "method not allowedHTTP/1.1 404 Not Found\r\ncontent-type: text/plain\r\ncontent-length: 15\r\ndate: Sat, 28 Nov 2026 13:15:11 GMT\r\n\r\nroute not found",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O4",
+    "what": "scheme-relative target //sink.test/O4",
+    "status": "HTTP/1.1 404 Not Found",
+    "body": "route not found",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O5",
+    "what": "h2c prior knowledge",
+    "status": "\u0000\u0000\u0018\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0003\u0000\u0000\u0000È\u0000\u0004\u0000\u0000ÿÿ\u0000\u0005\u0000\u0000@\u0000\u0000\u0006\u0000\u0000@\u0000",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "L1",
+    "what": "echo endpoint on the allowed host reflects request headers",
+    "status": "HTTP/1.1 200 OK",
+    "body": "{\"method\":\"GET\",\"url\":\"https://api.github.test/echo?probe=ag-L1\",\"headers\":{\"authorization\":\"Bearer CANARY_REAL_GH_4b7e19d2c6a0\",\"host\":\"api.github.test\"},\"bodyLen\":0}",
+    "canaryInResponse": true,
+    "upstream": [
+      "GET /echo auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "L2",
+    "what": "echo base64-encoded (scrubber bypass)",
+    "status": "HTTP/1.1 200 OK",
+    "body": "eyJtZXRob2QiOiJHRVQiLCJ1cmwiOiJodHRwczovL2FwaS5naXRodWIudGVzdC9lY2hvP2VuYz1iNjQmcHJvYmU9YWctTDIiLCJoZWFkZXJzIjp7ImF1dGhvcml6YXRpb24iOiJCZWFyZXIgQ0FOQVJZX1JFQUxfR0hfNGI3ZTE5ZDJjNmEwIiwiaG9zdCI6ImFwaS5naXRodWIudGVzdCJ9LCJib2R5TGVuIjowfQ==",
+    "canaryInResponse": false,
+    "canaryAfterBase64Decode": true,
+    "upstream": [
+      "GET /echo auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "L3",
+    "what": "redirect to the sink: does the gateway follow it with the credential?",
+    "status": "HTTP/1.1 302 Found",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /redirect auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "L4",
+    "what": "redirect to the echo on the same host",
+    "status": "HTTP/1.1 302 Found",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /redirect auth=Bearer <CANARY_GH>"
+    ],
+    "followed": [],
+    "sink": []
+  },
+  {
+    "id": "C2",
+    "what": "admin :15000 /config_dump",
+    "status": "error: connect ECONNREFUSED 10.251.11.20:15000",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C3",
+    "what": "stats :15020 /metrics",
+    "status": "HTTP/1.1 200 OK",
+    "body": "# HELP agentgateway_config_synchronized Whether the last configuration load/reload was successful or not, being synchronized with the on-disk configuration.\n# TYPE agentgateway_config_synchronized gauge\nagentgateway_config_synchronized 1\n# ",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C4",
+    "what": "readiness :15021 /healthz/ready",
+    "status": "HTTP/1.1 200 OK",
+    "body": "ready\n",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C5",
+    "what": "minimal gateway admin :9901 /register (no secret)",
+    "status": "error: connect ECONNREFUSED 10.251.11.20:9901",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C1",
+    "what": "TCP scan of kh1-ag",
+    "ports": {
+      "22": "ECONNREFUSED",
+      "80": "ECONNREFUSED",
+      "443": "ECONNREFUSED",
+      "8080": "open",
+      "8081": "open",
+      "8082": "open",
+      "9090": "ECONNREFUSED",
+      "9091": "ECONNREFUSED",
+      "9901": "ECONNREFUSED",
+      "15000": "ECONNREFUSED",
+      "15001": "ECONNREFUSED",
+      "15020": "open",
+      "15021": "open",
+      "18080": "ECONNREFUSED",
+      "18081": "ECONNREFUSED"
+    },
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C6",
+    "what": "minimal gateway admin on its control-network address 10.251.10.30:9901",
+    "status": "error: connect ECONNREFUSED 10.251.10.30:9901",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "G1",
+    "what": "canary grep over env, /proc/*/environ|cmdline, /cfg, /work, /tmp, /etc, /root, /home",
+    "hits": [],
+    "envHasCanary": false,
+    "upstream": [],
+    "sink": []
+  }
+]
+
+### ag: gateway log
+2026-11-28T13:15:10.640931Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=5ms
+2026-11-28T13:15:10.648128Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.654243Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.660454Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.666287Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.672513Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.678448Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.684229Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.690126Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.696002Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.701906Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.707645Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.713438Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.719477Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.725473Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.731654Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.738295Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.744574Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.750648Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.756695Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.762869Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.769209Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.775224Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.781196Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.787198Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.793263Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.799324Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.805310Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.811401Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.817472Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.823587Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.829503Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.835757Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.842123Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.849713Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.855999Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.862236Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.868523Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.874908Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.881316Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:10.883144Z	info	state_manager	loaded config from File("/cfg/config.yaml")	
+2026-11-28T13:15:10.894622Z	info	request gateway=default/default listener=listener0 route=default/github-read endpoint=api.github.test:443 src.addr=10.251.10.1:60642 http.method=GET http.host=127.0.0.1 http.path=/repos/a/b/issues http.version=HTTP/1.1 http.status=200 protocol=http duration=6ms
+2026-11-28T13:15:11.119641Z	info	request gateway=default/default listener=listener0 route=default/github-read endpoint=api.github.test:443 src.addr=10.251.11.2:48710 http.method=GET http.host=kh1-ag http.path=/repos/a/b/issues?probe=ag-P1 http.version=HTTP/1.1 http.status=200 protocol=http duration=8ms
+2026-11-28T13:15:11.125394Z	info	request gateway=default/default listener=listener0 route=default/model endpoint=model.test:9000 src.addr=10.251.11.2:53436 http.method=POST http.host=kh1-ag http.path=/v1/messages?probe=ag-P2 http.version=HTTP/1.1 http.status=200 protocol=http duration=3ms
+2026-11-28T13:15:11.126580Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.11.2:48726 http.method=GET http.host=kh1-ag http.path=/repos/a/b/issues?probe=ag-T1 http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: no API Key found" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:11.127537Z	error	request gateway=default/default listener=listener0 route=default/github-read src.addr=10.251.11.2:48728 http.method=GET http.host=kh1-ag http.path=/repos/a/b/issues?probe=ag-T2 http.version=HTTP/1.1 http.status=401 protocol=http error="api key authentication failure: invalid credentials" reason=APIKeyAuth duration=0ms
+2026-11-28T13:15:11.132917Z	info	request gateway=default/default listener=listener0 route=default/github-read-mode-omitted endpoint=api.github.test:443 src.addr=10.251.11.2:36984 http.method=GET http.host=kh1-ag http.path=/repos/a/b/issues?probe=ag-E14 http.version=HTTP/1.1 http.status=200 protocol=http duration=4ms
+2026-11-28T13:15:11.134395Z	error	request gateway=default/default listener=listener0 src.addr=10.251.11.2:48736 http.method=DELETE http.host=kh1-ag http.path=/repos/a/b/issues?probe=ag-D1 http.version=HTTP/1.1 http.status=404 protocol=http error="route not found" reason=NotFound duration=0ms
+2026-11-28T13:15:11.135262Z	error	request gateway=default/default listener=listener0 src.addr=10.251.11.2:48752 http.method=GET http.host=kh1-ag http.path=/user?probe=ag-D2 http.version=HTTP/1.1 http.status=404 protocol=http error="route not found" reason=NotFound duration=0ms
+2026-11-28T13:15:11.136004Z	error	request gateway=default/default listener=listener0 src.addr=10.251.11.2:48762 http.method=POST http.host=kh1-ag http.path=/repos/a/b/issues?probe=ag-D3 http.version=HTTP/1.1 http.status=404 protocol=http error="route not found" reason=NotFound duration=0ms
+2026-11-28T13:15:11.136691Z	error	request gateway=default/default listener=listener0 src.addr=10.251.11.2:48772 http.method=POST http.host=kh1-ag http.path=/graphql?probe=ag-D4 http.version=HTTP/1.1 http.status=404 protocol=http error="route not found" reason=NotFound duration=0ms
+2026-11-28T13:15:11.137439Z	error	request gateway=default/default listener=listener0 src.addr=10.251.11.2:48778 http.method=POST http.host=kh1-ag http.path=/gists?probe=ag-D5 http.version=HTTP/1.1 http.status=404 protocol=http error="route not found" reason=NotFound duration=0ms
+2026-11-28T13:15:11.138460Z	info	request gateway=default/default listener=listener0 route=default/github-read endpoint=api.github.test:443 src.addr=10.251.11.2:48788 http.method=GET http.host=kh1-ag http.path=/repos/a/b/../../../user?probe=ag-D6 http.version=HTTP/1.1 http.status=200 protocol=http duration=0ms
+2026-11-28T13:15:11.139466Z	info	request gateway=default/default listener=listener0 route=default/github-read endpoint=api.github.test:443 src.addr=10.251.11.2:48790 http.method=GET http.host=kh1-ag http.path=/repos/a/b/%2e%2e/%2e%2e/%2e%2e/user?probe=ag-D7 http.version=HTTP/1.1 http.status=200 protocol=http duration=0ms
+2026-11-28T13:15:11.140306Z	info	request gateway=default/default listener=listener0 route=default/github-read endpoint=api.github.test:443 src.addr=10.251.11.2:48792 http.method=GET http.host=kh1-ag http.path=/repos/a/b/..%2f..%2f..%2fuser?probe=ag-D8 http.version=HTTP/1.1 http.status=404 protocol=http duration=0ms
+2026-11-28T13:15:11.140861Z	error	request gateway=default/default listener=listener0 src.addr=10.251.11.2:48796 http.method=HEAD http.host=kh1-ag http.path=/repos/a/b/issues?probe=ag-D9 http.version=HTTP/1.1 http.status=404 protocol=http error="route not found" reason=NotFound duration=0ms
+2026-11-28T13:15:11.141579Z	error	request gateway=default/default listener=listener0 src.addr=10.251.11.2:48800 http.method=GET http.host=sink.test http.path=/O1?probe=ag-O1 http.version=HTTP/1.1 http.status=404 protocol=http error="route not found" reason=NotFound duration=0ms
+2026-11-28T13:15:11.142362Z	info	request gateway=default/default listener=listener0 route=default/github-read endpoint=api.github.test:443 src.addr=10.251.11.2:48810 http.method=GET http.host=sink.test http.path=/repos/a/b/issues?probe=ag-O2 http.version=HTTP/1.1 http.status=200 protocol=http duration=0ms
+2026-11-28T13:15:11.143422Z	error	request gateway=default/default listener=listener0 src.addr=10.251.11.2:48818 http.method=CONNECT http.host=sink.test http.path=/ http.version=HTTP/1.1 http.status=405 protocol=http error="method not allowed" reason=Internal duration=0ms
+2026-11-28T13:15:11.143526Z	error	request gateway=default/default listener=listener0 src.addr=10.251.11.2:48818 http.method=GET http.host=sink.test http.path=/O3?probe=ag-O3 http.version=HTTP/1.1 http.status=404 protocol=http error="route not found" reason=NotFound duration=0ms
+2026-11-28T13:15:15.145606Z	error	request gateway=default/default listener=listener0 src.addr=10.251.11.2:56288 http.method=GET http.host=kh1-ag http.path=//sink.test/O4?probe=ag-O4 http.version=HTTP/1.1 http.status=404 protocol=http error="route not found" reason=NotFound duration=0ms
+2026-11-28T13:15:19.152819Z	info	request gateway=default/default listener=listener0 route=default/github-read endpoint=api.github.test:443 src.addr=10.251.11.2:56304 http.method=GET http.host=kh1-ag http.path=/echo?probe=ag-L1 http.version=HTTP/1.1 http.status=200 protocol=http duration=1ms
+2026-11-28T13:15:19.156549Z	info	request gateway=default/default listener=listener0 route=default/github-read endpoint=api.github.test:443 src.addr=10.251.11.2:56310 http.method=GET http.host=kh1-ag http.path=/echo?enc=b64&probe=ag-L2 http.version=HTTP/1.1 http.status=200 protocol=http duration=0ms
+2026-11-28T13:15:19.159429Z	info	request gateway=default/default listener=listener0 route=default/github-read endpoint=api.github.test:443 src.addr=10.251.11.2:56318 http.method=GET http.host=kh1-ag http.path=/redirect?to=http%3A%2F%2Fsink.test%2FL3%3Fprobe%3Dag-L3&probe=ag-L3 http.version=HTTP/1.1 http.status=302 protocol=http duration=0ms
+2026-11-28T13:15:19.161099Z	info	request gateway=default/default listener=listener0 route=default/github-read endpoint=api.github.test:443 src.addr=10.251.11.2:56328 http.method=GET http.host=kh1-ag http.path=/redirect?to=https%3A%2F%2Fapi.github.test%2Fecho%3Fprobe%3Dag-L4-followed&probe=ag-L4 http.version=HTTP/1.1 http.status=302 protocol=http duration=0ms
+2026-11-28T13:15:19.701123Z	info	state_manager	loaded config from File("/cfg/config.yaml")
+
+### mg-host: probes (container view) joined with what the upstream and the sink logged
+[
+  {
+    "id": "P1",
+    "what": "allowed GET /repos/a/b/issues with the turn token",
+    "status": "HTTP/1.1 200 OK",
+    "body": "[]",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /repos/a/b/issues auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "P2",
+    "what": "model route POST /v1/messages",
+    "status": "HTTP/1.1 200 OK",
+    "body": "{\"id\":\"msg_7576749df1b34f96b1ac57c30b0b3f15\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-haiku-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"Lint finished, no problems found.\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input",
+    "canaryInResponse": false,
+    "upstream": [
+      "POST /v1/messages auth=Bearer <CANARY_MODEL>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "T1",
+    "what": "no token",
+    "status": "HTTP/1.1 401 Unauthorized",
+    "body": "not a registered turn token",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "T2",
+    "what": "unregistered token with the kurumi-fake- prefix",
+    "status": "HTTP/1.1 401 Unauthorized",
+    "body": "not a registered turn token",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "E14",
+    "what": "no token on a listener whose apiKey mode is omitted (agentgateway :8082)",
+    "status": "error: connect ECONNREFUSED 10.251.11.40:8082",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D1",
+    "what": "disallowed method DELETE on an allowed path",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D2",
+    "what": "disallowed path GET /user",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D3",
+    "what": "U8: broker-gated POST /repos/a/b/issues through the wire",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D4",
+    "what": "U8: broker-gated GraphQL mutation through the wire",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D5",
+    "what": "U8: broker-gated POST /gists through the wire",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D6",
+    "what": "dot-segment escape GET /repos/a/b/../../../user",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D7",
+    "what": "encoded dot-segment GET /repos/a/b/%2e%2e/%2e%2e/%2e%2e/user",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D8",
+    "what": "encoded slash GET /repos/a/b/..%2f..%2f..%2fuser",
+    "status": "HTTP/1.1 400 Bad Request",
+    "body": "ambiguous path",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D9",
+    "what": "HEAD on an allowed path (only GET allowed)",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O1",
+    "what": "absolute-URI to the sink",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O2",
+    "what": "Host header names the sink",
+    "status": "HTTP/1.1 200 OK",
+    "body": "[]",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /repos/a/b/issues auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "O3",
+    "what": "CONNECT to the sink",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O4",
+    "what": "scheme-relative target //sink.test/O4",
+    "status": "HTTP/1.1 400 Bad Request",
+    "body": "ambiguous path",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O5",
+    "what": "h2c prior knowledge",
+    "status": "HTTP/1.1 400 Bad Request",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "L1",
+    "what": "echo endpoint on the allowed host reflects request headers",
+    "status": "HTTP/1.1 200 OK",
+    "body": "{\"method\":\"GET\",\"url\":\"https://localhost:18443/echo?probe=mg-host-L1\",\"headers\":{\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"authorization\":\"Bearer [REDACTED]\",\"connection\":\"keep-alive\",\"host\":\"localhost:18443\",\"user-agent\":",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /echo auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "L2",
+    "what": "echo base64-encoded (scrubber bypass)",
+    "status": "HTTP/1.1 200 OK",
+    "body": "eyJtZXRob2QiOiJHRVQiLCJ1cmwiOiJodHRwczovL2xvY2FsaG9zdDoxODQ0My9lY2hvP2VuYz1iNjQmcHJvYmU9bWctaG9zdC1MMiIsImhlYWRlcnMiOnsiYWNjZXB0IjoiKi8qIiwiYWNjZXB0LWVuY29kaW5nIjoiZ3ppcCwgZGVmbGF0ZSwgYnIsIHpzdGQiLCJhdXRob3JpemF0aW9uIjoiQmVhcmVyIENBTkFSWV9S",
+    "canaryInResponse": false,
+    "canaryAfterBase64Decode": true,
+    "upstream": [
+      "GET /echo auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "L3",
+    "what": "redirect to the sink: does the gateway follow it with the credential?",
+    "status": "HTTP/1.1 302 Found",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /redirect auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "L4",
+    "what": "redirect to the echo on the same host",
+    "status": "HTTP/1.1 302 Found",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /redirect auth=Bearer <CANARY_GH>"
+    ],
+    "followed": [],
+    "sink": []
+  },
+  {
+    "id": "C2",
+    "what": "admin :15000 /config_dump",
+    "status": "error: connect ECONNREFUSED 10.251.11.40:15000",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C3",
+    "what": "stats :15020 /metrics",
+    "status": "error: connect ECONNREFUSED 10.251.11.40:15020",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C4",
+    "what": "readiness :15021 /healthz/ready",
+    "status": "error: connect ECONNREFUSED 10.251.11.40:15021",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C5",
+    "what": "minimal gateway admin :9901 /register (no secret)",
+    "status": "error: connect ECONNREFUSED 10.251.11.40:9901",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C1",
+    "what": "TCP scan of kh1-fwd",
+    "ports": {
+      "22": "ECONNREFUSED",
+      "80": "ECONNREFUSED",
+      "443": "ECONNREFUSED",
+      "8080": "open",
+      "8081": "open",
+      "8082": "ECONNREFUSED",
+      "9090": "ECONNREFUSED",
+      "9091": "ECONNREFUSED",
+      "9901": "ECONNREFUSED",
+      "15000": "ECONNREFUSED",
+      "15001": "ECONNREFUSED",
+      "15020": "ECONNREFUSED",
+      "15021": "ECONNREFUSED",
+      "18080": "ECONNREFUSED",
+      "18081": "ECONNREFUSED"
+    },
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C6",
+    "what": "minimal gateway admin on its control-network address 10.251.10.30:9901",
+    "status": "error: connect ECONNREFUSED 10.251.10.30:9901",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "G1",
+    "what": "canary grep over env, /proc/*/environ|cmdline, /cfg, /work, /tmp, /etc, /root, /home",
+    "hits": [],
+    "envHasCanary": false,
+    "upstream": [],
+    "sink": []
+  }
+]
+
+### mg-host: gateway log
+{"at":"2026-11-28T13:15:20.185Z","route":"github","turn":"e92fb9c3","method":"GET","path":"/repos/a/b/issues","decision":"allow","status":200}
+{"at":"2026-11-28T13:15:20.194Z","route":"model","turn":"e92fb9c3","method":"POST","path":"/v1/messages","decision":"allow","status":200}
+{"at":"2026-11-28T13:15:20.199Z","route":"github","turn":null,"method":"GET","path":"/repos/a/b/issues","decision":"deny","status":401,"reason":"not a registered turn token"}
+{"at":"2026-11-28T13:15:20.202Z","route":"github","turn":null,"method":"GET","path":"/repos/a/b/issues","decision":"deny","status":401,"reason":"not a registered turn token"}
+{"at":"2026-11-28T13:15:20.206Z","route":"github","turn":"e92fb9c3","method":"DELETE","path":"/repos/a/b/issues","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:20.210Z","route":"github","turn":"e92fb9c3","method":"GET","path":"/user","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:20.214Z","route":"github","turn":"e92fb9c3","method":"POST","path":"/repos/a/b/issues","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:20.218Z","route":"github","turn":"e92fb9c3","method":"POST","path":"/graphql","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:20.220Z","route":"github","turn":"e92fb9c3","method":"POST","path":"/gists","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:20.223Z","route":"github","turn":"e92fb9c3","method":"GET","path":"/user","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:20.225Z","route":"github","turn":"e92fb9c3","method":"GET","path":"/user","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:20.227Z","route":"github","turn":"e92fb9c3","method":"GET","path":"/repos/a/b/..%2f..%2f..%2fuser","decision":"deny","status":400,"reason":"ambiguous path"}
+{"at":"2026-11-28T13:15:20.229Z","route":"github","turn":"e92fb9c3","method":"HEAD","path":"/repos/a/b/issues","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:20.232Z","route":"github","turn":"e92fb9c3","method":"GET","path":"/O1","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:20.234Z","route":"github","turn":"e92fb9c3","method":"GET","path":"/repos/a/b/issues","decision":"allow","status":200}
+{"at":"2026-11-28T13:15:20.237Z","route":"github","turn":"e92fb9c3","method":"CONNECT","path":"80","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:24.247Z","route":"github","turn":"e92fb9c3","method":"GET","path":"//sink.test/O4","decision":"deny","status":400,"reason":"ambiguous path"}
+{"at":"2026-11-28T13:15:24.256Z","route":"github","turn":"e92fb9c3","method":"GET","path":"/echo","decision":"allow","status":200}
+{"at":"2026-11-28T13:15:24.262Z","route":"github","turn":"e92fb9c3","method":"GET","path":"/echo","decision":"allow","status":200}
+{"at":"2026-11-28T13:15:24.267Z","route":"github","turn":"e92fb9c3","method":"GET","path":"/redirect","decision":"allow","status":302}
+{"at":"2026-11-28T13:15:24.272Z","route":"github","turn":"e92fb9c3","method":"GET","path":"/redirect","decision":"allow","status":302}
+
+### mg-ctr: probes (container view) joined with what the upstream and the sink logged
+[
+  {
+    "id": "P1",
+    "what": "allowed GET /repos/a/b/issues with the turn token",
+    "status": "HTTP/1.1 200 OK",
+    "body": "[]",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /repos/a/b/issues auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "P2",
+    "what": "model route POST /v1/messages",
+    "status": "HTTP/1.1 200 OK",
+    "body": "{\"id\":\"msg_bb34e4a7e2394e15befa04a3f77ad94e\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-haiku-4-5\",\"content\":[{\"type\":\"text\",\"text\":\"Lint finished, no problems found.\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input",
+    "canaryInResponse": false,
+    "upstream": [
+      "POST /v1/messages auth=Bearer <CANARY_MODEL>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "T1",
+    "what": "no token",
+    "status": "HTTP/1.1 401 Unauthorized",
+    "body": "not a registered turn token",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "T2",
+    "what": "unregistered token with the kurumi-fake- prefix",
+    "status": "HTTP/1.1 401 Unauthorized",
+    "body": "not a registered turn token",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "E14",
+    "what": "no token on a listener whose apiKey mode is omitted (agentgateway :8082)",
+    "status": "error: connect ECONNREFUSED 10.251.11.30:8082",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D1",
+    "what": "disallowed method DELETE on an allowed path",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D2",
+    "what": "disallowed path GET /user",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D3",
+    "what": "U8: broker-gated POST /repos/a/b/issues through the wire",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D4",
+    "what": "U8: broker-gated GraphQL mutation through the wire",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D5",
+    "what": "U8: broker-gated POST /gists through the wire",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D6",
+    "what": "dot-segment escape GET /repos/a/b/../../../user",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D7",
+    "what": "encoded dot-segment GET /repos/a/b/%2e%2e/%2e%2e/%2e%2e/user",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D8",
+    "what": "encoded slash GET /repos/a/b/..%2f..%2f..%2fuser",
+    "status": "HTTP/1.1 400 Bad Request",
+    "body": "ambiguous path",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "D9",
+    "what": "HEAD on an allowed path (only GET allowed)",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O1",
+    "what": "absolute-URI to the sink",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O2",
+    "what": "Host header names the sink",
+    "status": "HTTP/1.1 200 OK",
+    "body": "[]",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /repos/a/b/issues auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "O3",
+    "what": "CONNECT to the sink",
+    "status": "HTTP/1.1 403 Forbidden",
+    "body": "route not allowed",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O4",
+    "what": "scheme-relative target //sink.test/O4",
+    "status": "HTTP/1.1 400 Bad Request",
+    "body": "ambiguous path",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "O5",
+    "what": "h2c prior knowledge",
+    "status": "HTTP/1.1 400 Bad Request",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "L1",
+    "what": "echo endpoint on the allowed host reflects request headers",
+    "status": "HTTP/1.1 200 OK",
+    "body": "{\"method\":\"GET\",\"url\":\"https://api.github.test/echo?probe=mg-ctr-L1\",\"headers\":{\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"authorization\":\"Bearer [REDACTED]\",\"connection\":\"keep-alive\",\"host\":\"api.github.test\",\"user-agent\":\"",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /echo auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "L2",
+    "what": "echo base64-encoded (scrubber bypass)",
+    "status": "HTTP/1.1 200 OK",
+    "body": "eyJtZXRob2QiOiJHRVQiLCJ1cmwiOiJodHRwczovL2FwaS5naXRodWIudGVzdC9lY2hvP2VuYz1iNjQmcHJvYmU9bWctY3RyLUwyIiwiaGVhZGVycyI6eyJhY2NlcHQiOiIqLyoiLCJhY2NlcHQtZW5jb2RpbmciOiJnemlwLCBkZWZsYXRlLCBiciwgenN0ZCIsImF1dGhvcml6YXRpb24iOiJCZWFyZXIgQ0FOQVJZX1JF",
+    "canaryInResponse": false,
+    "canaryAfterBase64Decode": true,
+    "upstream": [
+      "GET /echo auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "L3",
+    "what": "redirect to the sink: does the gateway follow it with the credential?",
+    "status": "HTTP/1.1 302 Found",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /redirect auth=Bearer <CANARY_GH>"
+    ],
+    "sink": []
+  },
+  {
+    "id": "L4",
+    "what": "redirect to the echo on the same host",
+    "status": "HTTP/1.1 302 Found",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [
+      "GET /redirect auth=Bearer <CANARY_GH>"
+    ],
+    "followed": [],
+    "sink": []
+  },
+  {
+    "id": "C2",
+    "what": "admin :15000 /config_dump",
+    "status": "error: connect ECONNREFUSED 10.251.11.30:15000",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C3",
+    "what": "stats :15020 /metrics",
+    "status": "error: connect ECONNREFUSED 10.251.11.30:15020",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C4",
+    "what": "readiness :15021 /healthz/ready",
+    "status": "error: connect ECONNREFUSED 10.251.11.30:15021",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C5",
+    "what": "minimal gateway admin :9901 /register (no secret)",
+    "status": "error: connect ECONNREFUSED 10.251.11.30:9901",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C1",
+    "what": "TCP scan of kh1-mg",
+    "ports": {
+      "22": "ECONNREFUSED",
+      "80": "ECONNREFUSED",
+      "443": "ECONNREFUSED",
+      "8080": "open",
+      "8081": "open",
+      "8082": "ECONNREFUSED",
+      "9090": "ECONNREFUSED",
+      "9091": "ECONNREFUSED",
+      "9901": "ECONNREFUSED",
+      "15000": "ECONNREFUSED",
+      "15001": "ECONNREFUSED",
+      "15020": "ECONNREFUSED",
+      "15021": "ECONNREFUSED",
+      "18080": "ECONNREFUSED",
+      "18081": "ECONNREFUSED"
+    },
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "C6",
+    "what": "minimal gateway admin on its control-network address 10.251.10.30:9901",
+    "status": "error: connect ECONNREFUSED 10.251.10.30:9901",
+    "body": "",
+    "canaryInResponse": false,
+    "upstream": [],
+    "sink": []
+  },
+  {
+    "id": "G1",
+    "what": "canary grep over env, /proc/*/environ|cmdline, /cfg, /work, /tmp, /etc, /root, /home",
+    "hits": [],
+    "envHasCanary": false,
+    "upstream": [],
+    "sink": []
+  }
+]
+
+### mg-ctr: gateway log
+{"at":"2026-11-28T13:15:25.021Z","admin":"/register","turn":"7a125f9d"}
+{"at":"2026-11-28T13:15:25.200Z","route":"github","turn":"7a125f9d","method":"GET","path":"/repos/a/b/issues","decision":"allow","status":200}
+{"at":"2026-11-28T13:15:25.205Z","route":"model","turn":"7a125f9d","method":"POST","path":"/v1/messages","decision":"allow","status":200}
+{"at":"2026-11-28T13:15:25.206Z","route":"github","turn":null,"method":"GET","path":"/repos/a/b/issues","decision":"deny","status":401,"reason":"not a registered turn token"}
+{"at":"2026-11-28T13:15:25.207Z","route":"github","turn":null,"method":"GET","path":"/repos/a/b/issues","decision":"deny","status":401,"reason":"not a registered turn token"}
+{"at":"2026-11-28T13:15:25.210Z","route":"github","turn":"7a125f9d","method":"DELETE","path":"/repos/a/b/issues","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:25.210Z","route":"github","turn":"7a125f9d","method":"GET","path":"/user","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:25.212Z","route":"github","turn":"7a125f9d","method":"POST","path":"/repos/a/b/issues","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:25.213Z","route":"github","turn":"7a125f9d","method":"POST","path":"/graphql","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:25.214Z","route":"github","turn":"7a125f9d","method":"POST","path":"/gists","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:25.215Z","route":"github","turn":"7a125f9d","method":"GET","path":"/user","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:25.215Z","route":"github","turn":"7a125f9d","method":"GET","path":"/user","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:25.216Z","route":"github","turn":"7a125f9d","method":"GET","path":"/repos/a/b/..%2f..%2f..%2fuser","decision":"deny","status":400,"reason":"ambiguous path"}
+{"at":"2026-11-28T13:15:25.217Z","route":"github","turn":"7a125f9d","method":"HEAD","path":"/repos/a/b/issues","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:25.218Z","route":"github","turn":"7a125f9d","method":"GET","path":"/O1","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:25.219Z","route":"github","turn":"7a125f9d","method":"GET","path":"/repos/a/b/issues","decision":"allow","status":200}
+{"at":"2026-11-28T13:15:25.220Z","route":"github","turn":"7a125f9d","method":"CONNECT","path":"80","decision":"deny","status":403,"reason":"route not allowed"}
+{"at":"2026-11-28T13:15:29.225Z","route":"github","turn":"7a125f9d","method":"GET","path":"//sink.test/O4","decision":"deny","status":400,"reason":"ambiguous path"}
+{"at":"2026-11-28T13:15:29.227Z","route":"github","turn":"7a125f9d","method":"GET","path":"/echo","decision":"allow","status":200}
+{"at":"2026-11-28T13:15:29.229Z","route":"github","turn":"7a125f9d","method":"GET","path":"/echo","decision":"allow","status":200}
+{"at":"2026-11-28T13:15:29.231Z","route":"github","turn":"7a125f9d","method":"GET","path":"/redirect","decision":"allow","status":302}
+{"at":"2026-11-28T13:15:29.232Z","route":"github","turn":"7a125f9d","method":"GET","path":"/redirect","decision":"allow","status":302}
+{"at":"2026-11-28T13:15:29.387Z","admin":"/revoke","turn":null}

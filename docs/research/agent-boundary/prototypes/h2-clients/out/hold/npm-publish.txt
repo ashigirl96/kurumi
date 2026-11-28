@@ -1,0 +1,26 @@
+START 1795869474
+npm notice 
+npm notice package: pub-fake@1.0.0
+npm notice === Tarball Contents === 
+npm notice 2B  index.js    
+npm notice 38B package.json
+npm notice === Tarball Details === 
+npm notice name:          pub-fake                                
+npm notice version:       1.0.0                                   
+npm notice filename:      pub-fake-1.0.0.tgz                      
+npm notice package size:  168 B                                   
+npm notice unpacked size: 40 B                                    
+npm notice shasum:        cdc7f6740251013a4b883606c34e56c7bfb8ceaf
+npm notice integrity:     sha512-38itKZRXdFnfk[...]291vdSckisOUA==
+npm notice total files:   2                                       
+npm notice 
+npm notice Publishing to http://npm.gw/ with tag latest and default access
+npm ERR! code FETCH_ERROR
+npm ERR! errno FETCH_ERROR
+npm ERR! network timeout at: http://npm.gw/pub-fake
+
+npm ERR! A complete log of this run can be found in:
+npm ERR!     /tmp/.npm/_logs/2026-11-28T12_37_54_368Z-debug-0.log
+
+END 1795870444 exit=1
+container_state_at_collection=exited

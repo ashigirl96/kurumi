@@ -1,0 +1,160 @@
+===== curl-no-ca
+$ curl -sS -f -H content-type: application/json -d {"title":"from curl"} https://api.github.com/repos/a/b/issues
+curl: (60) SSL certificate problem: self-signed certificate in certificate chain
+More details here: https://curl.se/docs/sslcerts.html
+
+curl failed to verify the legitimacy of the server and therefore could not
+establish a secure connection to it. To learn more about this situation and
+how to fix it, please visit the webpage mentioned above.
+RESULT curl-no-ca breaks (exit 60): how to fix it, please visit the webpage mentioned above.
+===== curl-SSL_CERT_FILE
+$ env SSL_CERT_FILE=/certs/iron-ca.crt curl -sS -f -H content-type: application/json -d {"title":"from curl"} https://api.github.com/repos/a/b/issues
+{"number":7,"html_url":"https://github.com/a/b/issues/7","title":"from curl"}
+RESULT curl-SSL_CERT_FILE works
+===== gh-no-ca
+$ env GH_TOKEN=kurumi-fake-turn1 gh api /repos/a/b
+Get "https://api.github.com/repos/a/b": tls: failed to verify certificate: x509: certificate signed by unknown authority
+RESULT gh-no-ca breaks (exit 1): Get "https://api.github.com/repos/a/b": tls: failed to verify certificate: x509: certificate signed by unknown authority
+===== gh-SSL_CERT_FILE
+$ env GH_TOKEN=kurumi-fake-turn1 SSL_CERT_FILE=/certs/iron-ca.crt gh api /repos/a/b
+{"id":1,"full_name":"a/b","name":"b","owner":{"login":"a"},"private":true,"default_branch":"main"}
+RESULT gh-SSL_CERT_FILE works
+===== gh-issue-create
+$ env GH_TOKEN=kurumi-fake-turn1 SSL_CERT_FILE=/certs/iron-ca.crt gh issue create -R a/b --title gh title A --body gh body A
+https://github.com/a/b/issues/7
+RESULT gh-issue-create works
+===== gh-graphql-mutation
+$ env GH_TOKEN=kurumi-fake-turn1 SSL_CERT_FILE=/certs/iron-ca.crt gh api graphql -f query=mutation($t:String!){createIssue(input:{repositoryId:"R_1",title:$t}){issue{number}}} -f t=graphql title A
+{"data":{"createIssue":{"issue":{"id":"I_1","number":7,"url":"https://github.com/a/b/issues/7"}}}}
+RESULT gh-graphql-mutation works
+===== git-clone-no-ca
+$ git clone https://github.com/a/b.git /tmp/b0
+Cloning into '/tmp/b0'...
+fatal: unable to access 'https://github.com/a/b.git/': server verification failed: certificate signer not trusted. (CAfile: /etc/ssl/certs/ca-certificates.crt CRLfile: none)
+RESULT git-clone-no-ca breaks (exit 128): fatal: unable to access 'https://github.com/a/b.git/': server verification failed: certificate signer not trusted. (CAfile: /etc/ssl/certs/ca-certificates.crt CRLfile: none)
+===== git-clone-SSL_CERT_FILE
+$ env SSL_CERT_FILE=/certs/iron-ca.crt git clone https://github.com/a/b.git /tmp/b1
+Cloning into '/tmp/b1'...
+fatal: unable to access 'https://github.com/a/b.git/': server verification failed: certificate signer not trusted. (CAfile: /etc/ssl/certs/ca-certificates.crt CRLfile: none)
+RESULT git-clone-SSL_CERT_FILE breaks (exit 128): fatal: unable to access 'https://github.com/a/b.git/': server verification failed: certificate signer not trusted. (CAfile: /etc/ssl/certs/ca-certificates.crt CRLfile: none)
+===== git-clone-GIT_SSL_CAINFO
+$ env GIT_SSL_CAINFO=/certs/iron-ca.crt git clone https://github.com/a/b.git /tmp/b
+Cloning into '/tmp/b'...
+RESULT git-clone-GIT_SSL_CAINFO works
+===== git-push
+$ git push origin main
+To https://github.com/a/b.git
+   bf5b290..9aba128  main -> main
+RESULT git-push works
+===== git-push-force
+$ git push --force origin main
+To https://github.com/a/b.git
+ + 9aba128...cb81181 main -> main (forced update)
+RESULT git-push-force works
+===== npm-install-no-ca
+$ npm install left-pad-fake --no-audit --no-fund
+npm ERR! code SELF_SIGNED_CERT_IN_CHAIN
+npm ERR! errno SELF_SIGNED_CERT_IN_CHAIN
+npm ERR! request to https://registry.npmjs.org/left-pad-fake failed, reason: self-signed certificate in certificate chain
+
+npm ERR! A complete log of this run can be found in:
+npm ERR!     /tmp/.npm/_logs/2026-11-28T13_17_41_322Z-debug-0.log
+RESULT npm-install-no-ca breaks (exit 1): npm ERR!     /tmp/.npm/_logs/2026-11-28T13_17_41_322Z-debug-0.log
+===== npm-install-NODE_EXTRA_CA_CERTS
+$ env NODE_EXTRA_CA_CERTS=/certs/iron-ca.crt npm install left-pad-fake --no-audit --no-fund
+
+added 1 package in 62ms
+RESULT npm-install-NODE_EXTRA_CA_CERTS works
+===== npm-publish
+$ env NODE_EXTRA_CA_CERTS=/certs/iron-ca.crt npm publish
+npm notice 
+npm notice package: pub-fake@1.0.0
+npm notice === Tarball Contents === 
+npm notice 2B  index.js    
+npm notice 38B package.json
+npm notice === Tarball Details === 
+npm notice name:          pub-fake                                
+npm notice version:       1.0.0                                   
+npm notice filename:      pub-fake-1.0.0.tgz                      
+npm notice package size:  168 B                                   
+npm notice unpacked size: 40 B                                    
+npm notice shasum:        cdc7f6740251013a4b883606c34e56c7bfb8ceaf
+npm notice integrity:     sha512-38itKZRXdFnfk[...]291vdSckisOUA==
+npm notice total files:   2                                       
+npm notice 
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and default access
++ pub-fake@1.0.0
+RESULT npm-publish works
+===== pip-no-ca
+$ pip install --no-cache-dir --break-system-packages --target /tmp/py0 fake-pkg
+WARNING: Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1029)'))': /simple/fake-pkg/
+WARNING: Retrying (Retry(total=3, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1029)'))': /simple/fake-pkg/
+WARNING: Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1029)'))': /simple/fake-pkg/
+WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1029)'))': /simple/fake-pkg/
+WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1029)'))': /simple/fake-pkg/
+Could not fetch URL https://pypi.org/simple/fake-pkg/: There was a problem confirming the ssl certificate: HTTPSConnectionPool(host='pypi.org', port=443): Max retries exceeded with url: /simple/fake-pkg/ (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1029)'))) - skipping
+ERROR: Could not find a version that satisfies the requirement fake-pkg (from versions: none)
+ERROR: No matching distribution found for fake-pkg
+RESULT pip-no-ca breaks (exit 1): ERROR: No matching distribution found for fake-pkg
+===== pip-SSL_CERT_FILE
+$ env SSL_CERT_FILE=/certs/iron-ca.crt pip install --no-cache-dir --break-system-packages --target /tmp/py1 fake-pkg
+Collecting fake-pkg
+  Downloading fake_pkg-1.0.0-py3-none-any.whl (982 bytes)
+Installing collected packages: fake-pkg
+Successfully installed fake-pkg-1.0.0
+RESULT pip-SSL_CERT_FILE works
+===== pip-PIP_CERT
+$ env PIP_CERT=/certs/iron-ca.crt pip install --no-cache-dir --break-system-packages --target /tmp/py2 fake-pkg
+Collecting fake-pkg
+  Downloading fake_pkg-1.0.0-py3-none-any.whl (982 bytes)
+Installing collected packages: fake-pkg
+Successfully installed fake-pkg-1.0.0
+RESULT pip-PIP_CERT works
+===== node-fetch-NODE_EXTRA_CA_CERTS
+$ env NODE_EXTRA_CA_CERTS=/certs/iron-ca.crt node -e fetch('https://api.github.com/repos/a/b').then(r=>r.text()).then(console.log).catch(e=>{console.log('ERR',e.cause?.code||e.message);process.exit(1)})
+ERR EAI_AGAIN
+RESULT node-fetch-NODE_EXTRA_CA_CERTS breaks (exit 1): ERR EAI_AGAIN
+===== claude-model-no-ca
+$ claude_run say hi --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions
+init: mcp_servers= []
+result: success "API Error: Unable to connect to API: Self-signed certificate detected (SELF_SIGNED_CERT_IN_CHAIN). The certificate comes from an authority Claude Code doesn't trust, usually a TLS-inspecting corporate proxy or a gateway signed by a private CA: set NODE_EXTRA_CA_CERTS to that CA bundle, or add it to the system certificate store · see https://code.claude.com/docs/en/network-config"
+RESULT claude-model-no-ca breaks (exit 0): result: success "API Error: Unable to connect to API: Self-signed certificate detected (SELF_SIGNED_CERT_IN_CHAIN). The certificate comes from an authority Claude Code doesn't trust, usually a TLS-ins
+===== claude-model-NODE_EXTRA_CA_CERTS
+$ claude_run say hi --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions
+init: mcp_servers= []
+result: success "FINAL used= last_tool_result=-"
+RESULT claude-model-NODE_EXTRA_CA_CERTS works
+===== webfetch-first-party-model-host
+$ claude_run WEBFETCH_URL=https://docs.example.com/page fetch it --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions --settings {"skipWebFetchPreflight":true}
+init: mcp_servers= []
+tool_use: ToolSearch {"query":"select:WebFetch","max_results":5}
+tool_result: "No matching deferred tools found"
+result: success "TOOL WebFetch NOT OFFERED; tools=Agent,Bash,Edit,ListAgents,Read,ReportFindings,ScheduleWakeup,Skill,ToolSearch,Workflow,DeferredToolPlaceholder,Write"
+RESULT webfetch-first-party-model-host breaks (exit 0): result: success "TOOL WebFetch NOT OFFERED; tools=Agent,Bash,Edit,ListAgents,Read,ReportFindings,ScheduleWakeup,Skill,ToolSearch,Workflow,DeferredToolPlaceholder,Write"
+===== webfetch-default-preflight
+$ claude_run WEBFETCH_URL=https://docs.example.com/page fetch it --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions
+init: mcp_servers= []
+tool_use: ToolSearch {"query":"select:WebFetch","max_results":5}
+tool_result: [{"type":"tool_reference","tool_name":"WebFetch"}]
+tool_use: WebFetch {"url":"https://docs.example.com/page","prompt":"Return the marker on the page."}
+tool_result: "Unable to verify if domain docs.example.com is safe to fetch. This may be due to network restrictions or enterprise security policies blocking claude.ai."
+result: success "FINAL used=ToolSearch,WebFetch last_tool_result=[{\"type\":\"tool_result\",\"content\":\"Unable to verify if domain docs.example.com is safe to fetch. This may be due to network restrictions or enterprise security policies blocking claude.ai.\",\"is_error\":true,\"tool_use_id\":\"toolu_4073725706e14d81a3c96a51\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]"
+RESULT webfetch-default-preflight breaks (exit 0): result: success "FINAL used=ToolSearch,WebFetch last_tool_result=[{\"type\":\"tool_result\",\"content\":\"Unable to verify if domain docs.example.com is safe to fetch. This may be due to network restr
+===== webfetch-skip-preflight
+$ claude_run WEBFETCH_URL=https://docs.example.com/page fetch it --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions --settings {"skipWebFetchPreflight":true}
+init: mcp_servers= []
+tool_use: ToolSearch {"query":"select:WebFetch","max_results":5}
+tool_result: [{"type":"tool_reference","tool_name":"WebFetch"}]
+tool_use: WebFetch {"url":"https://docs.example.com/page","prompt":"Return the marker on the page."}
+tool_result: "SUMMARY marker-present=true"
+result: success "FINAL used=ToolSearch,WebFetch last_tool_result=[{\"tool_use_id\":\"toolu_d5bcdca6f46d46bd99d19882\",\"type\":\"tool_result\",\"content\":\"SUMMARY marker-present=true\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]"
+RESULT webfetch-skip-preflight works
+===== mcp-remote-http
+$ claude_run USE_MCP call the echo tool --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions --mcp-config {"mcpServers":{"fake":{"type":"http","url":"https://mcp.example.com/mcp"}}}
+init: mcp_servers= [{"name":"fake","status":"connected","source":"dynamic"}]
+tool_use: ToolSearch {"query":"select:mcp__fake__echo","max_results":5}
+tool_result: [{"type":"tool_reference","tool_name":"mcp__fake__echo"}]
+tool_use: mcp__fake__echo {"text":"hello from the fake model"}
+tool_result: [{"type":"text","text":"MCP-ECHO {\"text\":\"hello from the fake model\"}"}]
+result: success "FINAL used=ToolSearch,mcp__fake__echo last_tool_result=[{\"tool_use_id\":\"toolu_3f9b913d5e8040d083a360ec\",\"type\":\"tool_result\",\"content\":[{\"type\":\"text\",\"text\":\"MCP-ECHO {\\\"text\\\":\\\"hello from the fake model\\\"}\"}],\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]"
+RESULT mcp-remote-http works

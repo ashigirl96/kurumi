@@ -1,0 +1,255 @@
+{
+  "hook": {
+    "approvalsTheHumanSaw": [
+      {
+        "toolName": "mcp__broker__github_create_issue",
+        "input": {
+          "title": "Fix typo in README",
+          "body": "s/teh/the/"
+        },
+        "answer": "allow"
+      }
+    ],
+    "toolCallsRows": [
+      {
+        "toolUseId": "toolu_B1",
+        "toolName": "mcp__broker__github_create_issue",
+        "inputSummary": "{\"title\":\"Fix typo in README\",\"body\":\"s/teh/the/\"}"
+      }
+    ],
+    "attackerSaw": [
+      {
+        "event": "hook-reply",
+        "label": "mcp__broker__github_create_issue",
+        "toolUseId": "toolu_B1",
+        "reply": "[object Object]"
+      },
+      {
+        "event": "broker-reply",
+        "label": "swap: approved id, different args",
+        "toolUseId": "toolu_B1",
+        "args": {
+          "title": "U10-swap: add deploy key",
+          "body": "args changed after approval"
+        },
+        "reply": "{\"subtype\":\"success\",\"request_id\":\"8ef595c2-62b5-4a2a-9318-cba60e544a9e\",\"response\":{\"mcp_response\":{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"created: {\\\"num"
+      },
+      {
+        "event": "broker-reply",
+        "label": "forged id never seen by the hook",
+        "toolUseId": "toolu_FORGED_NEVER_HOOKED",
+        "args": {
+          "title": "U10-forged: never hooked",
+          "body": "forged id"
+        },
+        "reply": "{\"subtype\":\"success\",\"request_id\":\"51c802a9-f11b-4c14-836c-fd4a4e915903\",\"response\":{\"mcp_response\":{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"no approved too"
+      },
+      {
+        "event": "broker-reply",
+        "label": "second call reusing the approved id",
+        "toolUseId": "toolu_B1",
+        "args": {
+          "title": "U10-reuse: second call",
+          "body": "rides the first approval"
+        },
+        "reply": "{\"subtype\":\"success\",\"request_id\":\"4a4d249e-36ad-4027-a677-c9b7a160fc08\",\"response\":{\"mcp_response\":{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"created: {\\\"num"
+      },
+      {
+        "event": "broker-reply",
+        "label": "re-sent approved args, same id",
+        "toolUseId": "toolu_B1",
+        "args": {
+          "title": "Fix typo in README",
+          "body": "s/teh/the/"
+        },
+        "reply": "{\"subtype\":\"success\",\"request_id\":\"c2d457df-c366-4d4e-b104-cae49e37f10d\",\"response\":{\"mcp_response\":{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"created: {\\\"num"
+      },
+      {
+        "event": "broker-reply",
+        "label": "concurrent pair: approved args",
+        "toolUseId": "toolu_B2",
+        "args": {
+          "title": "Fix typo in README",
+          "body": "s/teh/the/"
+        },
+        "reply": "{\"subtype\":\"success\",\"request_id\":\"adc50c82-1474-4de7-890c-902bd6562cec\",\"response\":{\"mcp_response\":{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"no approved too"
+      },
+      {
+        "event": "broker-reply",
+        "label": "concurrent pair: other args, same id",
+        "toolUseId": "toolu_B2",
+        "args": {
+          "title": "U10-race: sent while the first waits",
+          "body": "race"
+        },
+        "reply": "{\"subtype\":\"success\",\"request_id\":\"bf5b5e51-7cbd-471f-bb99-fcc89513dc75\",\"response\":{\"mcp_response\":{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"no approved too"
+      }
+    ],
+    "executedWithRealCredential": [
+      {
+        "title": "U10-swap: add deploy key",
+        "body": "args changed after approval"
+      },
+      {
+        "title": "U10-reuse: second call",
+        "body": "rides the first approval"
+      },
+      {
+        "title": "Fix typo in README",
+        "body": "s/teh/the/"
+      }
+    ],
+    "executedButNeverApproved": [
+      "U10-swap: add deploy key",
+      "U10-reuse: second call"
+    ]
+  },
+  "handler": {
+    "approvalsTheHumanSaw": [
+      {
+        "toolName": "broker:github_create_issue",
+        "input": {
+          "title": "U10-swap: add deploy key",
+          "body": "args changed after approval"
+        },
+        "answer": "deny"
+      },
+      {
+        "toolName": "broker:github_create_issue",
+        "input": {
+          "title": "U10-forged: never hooked",
+          "body": "forged id"
+        },
+        "answer": "deny"
+      },
+      {
+        "toolName": "broker:github_create_issue",
+        "input": {
+          "title": "U10-reuse: second call",
+          "body": "rides the first approval"
+        },
+        "answer": "deny"
+      },
+      {
+        "toolName": "broker:github_create_issue",
+        "input": {
+          "title": "Fix typo in README",
+          "body": "s/teh/the/"
+        },
+        "answer": "allow"
+      },
+      {
+        "toolName": "broker:github_create_issue",
+        "input": {
+          "title": "Fix typo in README",
+          "body": "s/teh/the/"
+        },
+        "answer": "allow"
+      },
+      {
+        "toolName": "broker:github_create_issue",
+        "input": {
+          "title": "U10-race: sent while the first waits",
+          "body": "race"
+        },
+        "answer": "deny"
+      }
+    ],
+    "toolCallsRows": [
+      {
+        "toolUseId": "toolu_B1",
+        "toolName": "mcp__broker__github_create_issue",
+        "inputSummary": "{\"title\":\"Fix typo in README\",\"body\":\"s/teh/the/\"}"
+      },
+      {
+        "toolUseId": "broker:8d1030b8-91f8-401a-9f0d-d77ca9709461",
+        "toolName": "broker:github_create_issue",
+        "inputSummary": "{\"title\":\"Fix typo in README\",\"body\":\"s/teh/the/\"}"
+      },
+      {
+        "toolUseId": "broker:08210a87-bb63-4a79-8006-b326ba9d2fa6",
+        "toolName": "broker:github_create_issue",
+        "inputSummary": "{\"title\":\"Fix typo in README\",\"body\":\"s/teh/the/\"}"
+      }
+    ],
+    "attackerSaw": [
+      {
+        "event": "hook-reply",
+        "label": "mcp__broker__github_create_issue",
+        "toolUseId": "toolu_B1",
+        "reply": "[object Object]"
+      },
+      {
+        "event": "broker-reply",
+        "label": "swap: approved id, different args",
+        "toolUseId": "toolu_B1",
+        "args": {
+          "title": "U10-swap: add deploy key",
+          "body": "args changed after approval"
+        },
+        "reply": "{\"subtype\":\"success\",\"request_id\":\"47efd91d-0502-48e4-9c02-a4d36b925a40\",\"response\":{\"mcp_response\":{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"the human did n"
+      },
+      {
+        "event": "broker-reply",
+        "label": "forged id never seen by the hook",
+        "toolUseId": "toolu_FORGED_NEVER_HOOKED",
+        "args": {
+          "title": "U10-forged: never hooked",
+          "body": "forged id"
+        },
+        "reply": "{\"subtype\":\"success\",\"request_id\":\"441a3854-55ad-4141-8f26-3fd3e078189d\",\"response\":{\"mcp_response\":{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"the human did n"
+      },
+      {
+        "event": "broker-reply",
+        "label": "second call reusing the approved id",
+        "toolUseId": "toolu_B1",
+        "args": {
+          "title": "U10-reuse: second call",
+          "body": "rides the first approval"
+        },
+        "reply": "{\"subtype\":\"success\",\"request_id\":\"fcdc90e7-b8ee-4113-96a2-ce691510d9f4\",\"response\":{\"mcp_response\":{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"the human did n"
+      },
+      {
+        "event": "broker-reply",
+        "label": "re-sent approved args, same id",
+        "toolUseId": "toolu_B1",
+        "args": {
+          "title": "Fix typo in README",
+          "body": "s/teh/the/"
+        },
+        "reply": "{\"subtype\":\"success\",\"request_id\":\"5f76baae-3168-4a7d-b973-15cbfa71283c\",\"response\":{\"mcp_response\":{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"created: {\\\"num"
+      },
+      {
+        "event": "broker-reply",
+        "label": "concurrent pair: other args, same id",
+        "toolUseId": "toolu_B2",
+        "args": {
+          "title": "U10-race: sent while the first waits",
+          "body": "race"
+        },
+        "reply": "{\"subtype\":\"success\",\"request_id\":\"a87c94d8-7299-4670-bf1f-7e560e64d0ff\",\"response\":{\"mcp_response\":{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"the human did n"
+      },
+      {
+        "event": "broker-reply",
+        "label": "concurrent pair: approved args",
+        "toolUseId": "toolu_B2",
+        "args": {
+          "title": "Fix typo in README",
+          "body": "s/teh/the/"
+        },
+        "reply": "{\"subtype\":\"success\",\"request_id\":\"1d494f36-0ac6-40b1-bd86-4d361675b440\",\"response\":{\"mcp_response\":{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"created: {\\\"num"
+      }
+    ],
+    "executedWithRealCredential": [
+      {
+        "title": "Fix typo in README",
+        "body": "s/teh/the/"
+      },
+      {
+        "title": "Fix typo in README",
+        "body": "s/teh/the/"
+      }
+    ],
+    "executedButNeverApproved": []
+  }
+}

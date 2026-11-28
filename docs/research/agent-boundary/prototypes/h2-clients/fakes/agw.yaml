@@ -1,0 +1,52 @@
+# agentgateway v1.7.0 standalone, E9: CEL rules over json(request.body) for a GraphQL mutation.
+# :80 allow-mode (allow only createIssue with title "approved title"), :3001 deny-mode (deny deleteRepository).
+config:
+  adminAddr: "off"
+  statsAddr: "off"
+  readinessAddr: "off"
+frontendPolicies:
+  http:
+    maxBufferSize: 8192
+binds:
+- port: 80
+  listeners:
+  - name: allow
+    protocol: HTTP
+    routes:
+    - name: gql-allow
+      policies:
+        authorization:
+          rules:
+          - allow: 'json(request.body).query.contains("createIssue") && json(request.body).variables.t == "approved title"'
+        urlRewrite:
+          authority:
+            full: api.github.com
+        requestHeaderModifier:
+          set:
+            authorization: "Bearer CANARY_REAL_9f1c2e7a5b3d"
+        backendTLS:
+          root: /certs/pub-ca.crt
+          hostname: api.github.com
+      backends:
+      - host: api.github.com:443
+- port: 3001
+  listeners:
+  - name: deny
+    protocol: HTTP
+    routes:
+    - name: gql-deny
+      policies:
+        authorization:
+          rules:
+          - deny: 'json(request.body).query.contains("deleteRepository")'
+        urlRewrite:
+          authority:
+            full: api.github.com
+        requestHeaderModifier:
+          set:
+            authorization: "Bearer CANARY_REAL_9f1c2e7a5b3d"
+        backendTLS:
+          root: /certs/pub-ca.crt
+          hostname: api.github.com
+      backends:
+      - host: api.github.com:443

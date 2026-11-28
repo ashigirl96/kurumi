@@ -1,0 +1,4 @@
+START 1795869474
+{"number":7,"html_url":"https://github.com/a/b/issues/7","title":"hold"}
+END 1795870434 exit=0
+container_state_at_collection=exited

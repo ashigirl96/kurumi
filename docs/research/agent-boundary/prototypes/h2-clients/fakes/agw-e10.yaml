@@ -1,0 +1,47 @@
+# agentgateway v1.7.0, E10: extAuthz (HTTP) as the approval hold. :80 default timeouts, :3002 raised.
+config:
+  adminAddr: "off"
+  statsAddr: "off"
+  readinessAddr: "off"
+binds:
+- port: 80
+  listeners:
+  - name: default-timeouts
+    protocol: HTTP
+    routes:
+    - name: echo
+      policies:
+        extAuthz:
+          host: authz:9001
+          protocol:
+            http:
+              path: '"/check"'
+          includeRequestBody: {}
+        urlRewrite: {authority: {full: echo.example.com}}
+        requestHeaderModifier: {set: {authorization: "Bearer CANARY_REAL_9f1c2e7a5b3d"}}
+        backendTLS: {root: /certs/pub-ca.crt, hostname: echo.example.com}
+      backends:
+      - host: echo.example.com:443
+- port: 3002
+  listeners:
+  - name: raised-timeouts
+    protocol: HTTP
+    routes:
+    - name: echo
+      policies:
+        extAuthz:
+          host: authz:9001
+          protocol:
+            http:
+              path: '"/check"'
+          includeRequestBody: {}
+          policies:
+            http:
+              requestTimeout: 30m
+        timeout:
+          requestTimeout: 30m
+        urlRewrite: {authority: {full: echo.example.com}}
+        requestHeaderModifier: {set: {authorization: "Bearer CANARY_REAL_9f1c2e7a5b3d"}}
+        backendTLS: {root: /certs/pub-ca.crt, hostname: echo.example.com}
+      backends:
+      - host: echo.example.com:443

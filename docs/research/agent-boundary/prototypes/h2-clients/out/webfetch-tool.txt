@@ -1,0 +1,17 @@
+===== model-on-base-url-gateway
+$ env ANTHROPIC_BASE_URL=http://model.gw sh -c . /scripts/lib.sh; claude_run 'WEBFETCH_URL=https://docs.example.com/page fetch it' --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions --settings '{"skipWebFetchPreflight":true}'
+init: mcp_servers= []
+tool_use: WebFetch {"url":"https://docs.example.com/page","prompt":"Return the marker on the page."}
+tool_result: "SUMMARY marker-present=true"
+result: success "FINAL used=WebFetch last_tool_result=[{\"tool_use_id\":\"toolu_d50bf20ed41e4dc6b2be2a2b\",\"type\":\"tool_result\",\"content\":\"SUMMARY marker-present=true\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]"
+RESULT model-on-base-url-gateway works
+===== model-base-url-set-to-api.anthropic.com
+$ env ANTHROPIC_BASE_URL=https://api.anthropic.com sh -c . /scripts/lib.sh; claude_run 'WEBFETCH_URL=https://docs.example.com/page fetch it' --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions --settings '{"skipWebFetchPreflight":true}'
+init: mcp_servers= []
+result: success "TOOL WebFetch NOT OFFERED; tools=Agent,Bash,CronCreate,CronDelete,CronList,Edit,EnterWorktree,ExitWorktree,ListAgents,Monitor,NotebookEdit,Read,RemoteTrigger,ReportFindings,ScheduleWakeup,SendMessage,Skill,TaskStop,WebSearch,Workflow,Write"
+RESULT model-base-url-set-to-api.anthropic.com breaks (exit 0): result: success "TOOL WebFetch NOT OFFERED; tools=Agent,Bash,CronCreate,CronDelete,CronList,Edit,EnterWorktree,ExitWorktree,ListAgents,Monitor,NotebookEdit,Read,RemoteTrigger,ReportFindings,ScheduleWa
+===== model-base-url-unset
+$ sh -c . /scripts/lib.sh; claude_run 'WEBFETCH_URL=https://docs.example.com/page fetch it' --setting-sources= --strict-mcp-config --permission-mode=bypassPermissions --allow-dangerously-skip-permissions --settings '{"skipWebFetchPreflight":true}'
+init: mcp_servers= []
+result: success "TOOL WebFetch NOT OFFERED; tools=Agent,Bash,CronCreate,CronDelete,CronList,Edit,EnterWorktree,ExitWorktree,ListAgents,Monitor,NotebookEdit,Read,RemoteTrigger,ReportFindings,ScheduleWakeup,SendMessage,Skill,TaskStop,WebSearch,Workflow,Write"
+RESULT model-base-url-unset breaks (exit 0): result: success "TOOL WebFetch NOT OFFERED; tools=Agent,Bash,CronCreate,CronDelete,CronList,Edit,EnterWorktree,ExitWorktree,ListAgents,Monitor,NotebookEdit,Read,RemoteTrigger,ReportFindings,ScheduleWa

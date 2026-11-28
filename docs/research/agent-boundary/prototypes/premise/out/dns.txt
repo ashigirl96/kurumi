@@ -1,0 +1,42 @@
+
+### docker
+server=29.6.1 os=linux/arm64
+
+### D1 Kurumi args (internal, default DNS): resolv.conf, in-network name, outside name
+{
+  "code": 0,
+  "stdout": "nameserver 127.0.0.11\noptions ndots:0\n\n{\"server\":\"127.0.0.11\",\"name\":\"kp-gw\",\"rcode\":\"NOERROR\",\"answers\":1,\"lastA\":\"172.24.0.2\"}\n{\"server\":\"127.0.0.11\",\"name\":\"d1-9a171c90.exfil.test\",\"rcode\":\"SERVFAIL\",\"answers\":0,\"lastA\":null}\ngetent=2",
+  "stderr": ""
+}
+
+### D2 Kurumi args + --dns 10.250.77.53 (internal): outside names via embedded DNS
+{
+  "code": 0,
+  "stdout": "{\"server\":\"127.0.0.11\",\"name\":\"d2-9a171c90.exfil.test\",\"rcode\":\"SERVFAIL\",\"answers\":0,\"lastA\":null}\n{\"server\":\"127.0.0.11\",\"name\":\"d2b-9a171c90.example.com\",\"rcode\":\"SERVFAIL\",\"answers\":0,\"lastA\":null}",
+  "stderr": ""
+}
+
+### D3 positive control: same args on non-internal kp-ext + --dns 10.250.77.53
+{
+  "code": 0,
+  "stdout": "{\"server\":\"127.0.0.11\",\"name\":\"d3-9a171c90.exfil.test\",\"rcode\":\"NOERROR\",\"answers\":1,\"lastA\":\"10.66.66.66\"}",
+  "stderr": ""
+}
+
+### D4 Kurumi args (internal): query the fake resolver 10.250.77.53 directly
+{
+  "code": 2,
+  "stdout": "{\"server\":\"10.250.77.53\",\"name\":\"d4-9a171c90.exfil.test\",\"result\":\"timeout after 4s\"}",
+  "stderr": ""
+}
+
+### fake resolver log lines containing tag 9a171c90
+{"at":"2026-11-28T13:14:36.470Z","from":"10.250.77.4:45930","name":"d3-9a171c90.exfil.test","qtype":1}
+
+### verdict
+{
+  "d1_forwarded": false,
+  "d2_forwarded_with_dns_flag": false,
+  "d3_control_forwarded": true,
+  "d4_direct_reached": false
+}

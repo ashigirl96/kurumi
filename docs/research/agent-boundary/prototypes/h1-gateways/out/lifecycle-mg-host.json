@@ -1,0 +1,65 @@
+{
+  "gateway": "mg-host",
+  "replayAfterTurnEnd": {
+    "turn1OwnToken": "HTTP/1.1 200 OK",
+    "turn2ReplaysTurn1Token_then_ownToken": [
+      "HTTP/1.1 401 Unauthorized\r",
+      "HTTP/1.1 200 OK"
+    ]
+  },
+  "revocationLatency": {
+    "samples": [
+      {
+        "callToFirst401Ms": 0.3,
+        "returnToFirst401Ms": 0.3,
+        "revokeCallMs": 0
+      },
+      {
+        "callToFirst401Ms": 0.2,
+        "returnToFirst401Ms": 0.2,
+        "revokeCallMs": 0
+      },
+      {
+        "callToFirst401Ms": 0.2,
+        "returnToFirst401Ms": 0.2,
+        "revokeCallMs": 0
+      },
+      {
+        "callToFirst401Ms": 0.1,
+        "returnToFirst401Ms": 0.1,
+        "revokeCallMs": 0
+      },
+      {
+        "callToFirst401Ms": 0.1,
+        "returnToFirst401Ms": 0.1,
+        "revokeCallMs": 0
+      }
+    ],
+    "medianCallToFirst401Ms": 0.2
+  },
+  "inflightStream": {
+    "revokedAtMs": 1201,
+    "end": "error: ECONNRESET: The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()",
+    "chunksAfterRevoke": 0,
+    "chunks": [
+      "+512ms chunk 1 at",
+      "+1009ms 2026-11-28T13:15:50.253Z\nchunk 2 at"
+    ]
+  },
+  "hostKill": {
+    "killedAt": "2026-11-28T13:15:51.233Z",
+    "containerAfter4s": "Up 4 seconds",
+    "statusesInThe4sAfterKill": {
+      "ERR TypeError": 15
+    },
+    "firstLinesAfterKill": [
+      "2026-11-28T13:15:51.485Z ERR TypeError",
+      "2026-11-28T13:15:51.740Z ERR TypeError",
+      "2026-11-28T13:15:51.996Z ERR TypeError"
+    ],
+    "restartedAt": "2026-11-28T13:15:55.279Z",
+    "statusesAfterHostRestartRevokesAll": {
+      "ERR TypeError": 8
+    }
+  }
+}

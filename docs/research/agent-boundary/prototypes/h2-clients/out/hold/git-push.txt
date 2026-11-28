@@ -1,0 +1,6 @@
+START 1795869473
+To http://git.gw/a/b.git
+ * [new branch]      HEAD -> hold-1795869473
+
+END 1795870434 exit=0
+container_state_at_collection=exited

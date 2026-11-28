@@ -1,0 +1,24 @@
+CASE allow-ok port=80 bytes=134 -> HTTP 200 {"data":{"createIssue":{"issue":{"id":"I_1","number":7,"url":"https://github.com/a/b/issues/7"}}}}
+CASE allow-swapped-variables port=80 bytes=133 -> HTTP 403 authorization failed
+CASE allow-opswap-comment port=80 bytes=147 -> HTTP 200 {"data":{"createIssue":{"issue":{"id":"I_1","number":7,"url":"https://github.com/a/b/issues/7"}}}}
+CASE allow-ok-chunked port=80 bytes=134 -> HTTP 200 {"data":{"createIssue":{"issue":{"id":"I_1","number":7,"url":"https://github.com/a/b/issues/7"}}}}
+CASE allow-ok-gzip port=80 bytes=143 -> HTTP 403 authorization failed
+CASE allow-ok-over-limit port=80 bytes=9143 -> HTTP 403 authorization failed
+CASE allow-dup-key-last-swapped port=80 bytes=154 -> HTTP 403 authorization failed
+CASE allow-dup-key-last-approved port=80 bytes=154 -> HTTP 200 {"data":{"createIssue":{"issue":{"id":"I_1","number":7,"url":"https://github.com/a/b/issues/7"}}}}
+CASE deny-del port=3001 bytes=120 -> HTTP 403 authorization failed
+CASE deny-del-chunked port=3001 bytes=120 -> HTTP 403 authorization failed
+CASE deny-del-gzip port=3001 bytes=135 -> HTTP 200 {"data":{"repository":{"id":"R_1","name":"b","owner":{"login":"a"},"hasIssuesEnabled":true,"viewerPermission":"ADMIN","i
+CASE deny-del-over-limit port=3001 bytes=9129 -> HTTP 200 {"data":{"repository":{"id":"R_1","name":"b","owner":{"login":"a"},"hasIssuesEnabled":true,"viewerPermission":"ADMIN","i
+===== gh-graphql-approved
+$ gh api graphql -f query=mutation($t:String!){createIssue(input:{repositoryId:"R_1",title:$t}){issue{number}}} -f t=approved title
+{"data":{"createIssue":{"issue":{"id":"I_1","number":7,"url":"https://github.com/a/b/issues/7"}}}}
+RESULT gh-graphql-approved works
+===== gh-graphql-swapped
+$ gh api graphql -f query=mutation($t:String!){createIssue(input:{repositoryId:"R_1",title:$t}){issue{number}}} -f t=swapped title
+authorization failedgh: HTTP 403
+RESULT gh-graphql-swapped breaks (exit 1): authorization failedgh: HTTP 403
+===== gh-issue-create-approved-title
+$ gh issue create -R github.localhost/a/b --title approved title --body b
+HTTP 403: 403 Forbidden (http://api.github.localhost/graphql)
+RESULT gh-issue-create-approved-title breaks (exit 1): HTTP 403: 403 Forbidden (http://api.github.localhost/graphql)

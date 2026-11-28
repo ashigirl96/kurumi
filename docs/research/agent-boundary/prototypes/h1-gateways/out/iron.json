@@ -1,0 +1,142 @@
+[
+  {
+    "server": "127.0.0.11",
+    "name": "api.github.test",
+    "rcode": "NOERROR",
+    "answers": 1,
+    "lastA": "10.251.11.50"
+  },
+  {
+    "server": "127.0.0.11",
+    "name": "e3a-50289b.exfil.test",
+    "rcode": "NOERROR",
+    "answers": 1,
+    "lastA": "10.251.11.50"
+  },
+  {
+    "server": "10.251.11.50",
+    "name": "e3b-50289b.exfil.test",
+    "rcode": "NOERROR",
+    "answers": 1,
+    "lastA": "10.251.11.50"
+  },
+  {
+    "server": "10.251.11.50",
+    "name": "e3c-50289b.pass.test",
+    "rcode": "NOERROR",
+    "answers": 1,
+    "lastA": "10.66.66.66"
+  },
+  {
+    "id": "I0",
+    "what": "DNS mode: allowed GET https://api.github.test/repos/a/b/issues",
+    "status": 200,
+    "body": "[]",
+    "canaryInResponse": false
+  },
+  {
+    "id": "I0b",
+    "what": "tunnel mode (HTTPS_PROXY): same request",
+    "error": "Error [ERR_PROXY_TUNNEL]: Proxy refused to open a tunnel: 403 Forbidden"
+  },
+  {
+    "id": "I1",
+    "what": "DNS mode: HTTPS to a host not on the allowlist (sink.test)",
+    "status": 403,
+    "body": "",
+    "canaryInResponse": false
+  },
+  {
+    "id": "I2",
+    "what": "SNI api.github.test, Host sink.test (direct to :443)",
+    "status": "HTTP/1.1 400 Bad Request"
+  },
+  {
+    "id": "I3",
+    "what": "CONNECT sink.test:80 on the tunnel listener",
+    "status": "HTTP/1.1 403 Forbidden"
+  },
+  {
+    "id": "I4",
+    "what": "CONNECT api.github.test:443, inner SNI api.github.test, inner Host sink.test",
+    "status": "HTTP/1.1 403 Forbidden"
+  },
+  {
+    "id": "I5",
+    "what": "absolute-form GET http://sink.test/I5 on the tunnel listener",
+    "status": "HTTP/1.1 403 Forbidden"
+  },
+  {
+    "id": "I6",
+    "what": "CONNECT to the sink by IP literal",
+    "status": "HTTP/1.1 403 Forbidden"
+  },
+  {
+    "id": "I7",
+    "what": "plain HTTP to :80 with Host sink.test",
+    "status": "HTTP/1.1 403 Forbidden"
+  },
+  {
+    "id": "ID3",
+    "what": "U8: POST /repos/a/b/issues on the allowed host (only GET + POST /echo allowed)",
+    "status": 403,
+    "body": "",
+    "canaryInResponse": false
+  },
+  {
+    "id": "ID6",
+    "what": "dot-segment escape GET /repos/a/b/../../../user",
+    "status": "HTTP/1.1 400 Bad Request"
+  },
+  {
+    "id": "ID7",
+    "what": "encoded dot-segment GET /repos/a/b/%2e%2e/%2e%2e/%2e%2e/user",
+    "status": "HTTP/1.1 400 Bad Request"
+  },
+  {
+    "id": "IL1",
+    "what": "E2: echo on the allowed host reflects the swapped-in secret",
+    "status": 200,
+    "body": "{\"method\":\"GET\",\"url\":\"https://api.github.test/echo?probe=IL1\",\"headers\":{\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"authorization\":\"Bearer CANARY_REAL_GH_4b7e19d2c6a0\",\"host\":\"api.gi",
+    "canaryInResponse": true
+  },
+  {
+    "id": "E1a",
+    "what": "E1: POST 524288 bytes (proxy token at the very end of the body) to the echo; secrets transform has match_body",
+    "sent": 524287,
+    "status": 200,
+    "body": "{\"method\":\"POST\",\"url\":\"https://api.github.test/echo?probe=E1a\",\"headers\":{\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"authorization\":\"Bearer CANARY_REAL_GH_4b7e19d2c6a0\",\"content-leng",
+    "canaryInResponse": true
+  },
+  {
+    "id": "E1b",
+    "what": "E1: POST 2097152 bytes (proxy token at the very end of the body) to the echo; secrets transform has match_body",
+    "sent": 2097151,
+    "status": 200,
+    "body": "{\"method\":\"POST\",\"url\":\"https://api.github.test/echo?probe=E1b\",\"headers\":{\"accept\":\"*/*\",\"accept-encoding\":\"gzip, deflate, br, zstd\",\"authorization\":\"Bearer CANARY_REAL_GH_4b7e19d2c6a0\",\"content-leng",
+    "canaryInResponse": true
+  },
+  {
+    "id": "IC1",
+    "what": "TCP scan of 10.251.11.50",
+    "ports": {
+      "22": "ECONNREFUSED",
+      "53": "ECONNREFUSED",
+      "80": "open",
+      "443": "open",
+      "8080": "open",
+      "9090": "open",
+      "9091": "ECONNREFUSED",
+      "9092": "ECONNREFUSED",
+      "15000": "ECONNREFUSED"
+    }
+  },
+  {
+    "id": "IC2",
+    "what": "metrics :9090 /metrics",
+    "status": "HTTP/1.1 404 Not Found",
+    "bytes": 195,
+    "canaryInResponse": false,
+    "sample": []
+  }
+]

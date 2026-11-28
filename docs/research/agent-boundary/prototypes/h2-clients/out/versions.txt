@@ -1,0 +1,27 @@
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+uid=0(root) gid=0(root) groups=0(root)
+git: /usr/bin/git
+gh: /usr/bin/gh
+curl: /usr/bin/curl
+npm: /usr/bin/npm
+node: /usr/bin/node
+pip: /usr/bin/pip
+pip3: /usr/bin/pip3
+python3: /usr/bin/python3
+bun: /usr/local/bin/bun
+claude: /usr/local/bin/claude
+openssl: /usr/bin/openssl
+git version 2.47.3
+curl 8.14.1 (aarch64-unknown-linux-gnu) libcurl/8.14.1 OpenSSL/3.5.9 zlib/1.3.1 brotli/1.1.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.21.2 libssh2/1.11.1 nghttp2/1.64.0 nghttp3/1.8.0 librtmp/2.3 OpenLDAP/2.6.10
+1.4.4
+2.1.332 (Claude Code)
+v20.19.2
+9.2.0
+Python 3.13.5
+pip 25.1.1 from /usr/lib/python3/dist-packages/pip (python 3.13)
+gh version 2.46.0 (2025-01-13 Debian 2.46.0-3)
+/usr/lib/git-core/git-http-backend
+arch: aarch64
+["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bun-node-fallback-bin","BUN_RUNTIME_TRANSPILER_CACHE_PATH=0","BUN_INSTALL_BIN=/usr/local/bin"] ["/usr/local/bin/docker-entrypoint.sh"] ["/usr/local/bin/bun"] 
+iron-proxy sha256:973b7adf44a12ded3b58cf67af35a80a8304d82bef0fb943e6467fe4f4020573

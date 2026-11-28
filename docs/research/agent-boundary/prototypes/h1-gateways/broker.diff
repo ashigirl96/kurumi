@@ -1,0 +1,18 @@
+--- turn.ts.orig	2026-11-28 21:26:41
++++ turn.ts	2026-11-28 21:26:41
+@@ -6,6 +6,7 @@
+ import type { Sandbox, TurnSandbox } from './sandbox.ts'
+ import type { InboundMessageId, TurnId } from './schema.ts'
+ import { sendMessageServer } from './send-tool.ts'
++import { brokerServer } from './broker-tool.ts'
+ import {
+   type AgentRuntimeDb,
+   type DbError,
+@@ -529,6 +530,7 @@
+                     notifyOutbound: deps.notifyOutbound,
+                     run,
+                   }),
++                  broker: brokerServer({ gate, run }),
+                 },
+                 ...(deps.model === undefined ? {} : { model: deps.model }),
+                 ...(resume === undefined ? {} : { resume }),

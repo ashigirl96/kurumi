@@ -1,0 +1,75 @@
+===== gh-issue-A
+$ gh issue create -R api.gw/a/b --title approved title --body approved body
+https://github.com/a/b/issues/7
+RESULT gh-issue-A works
+===== gh-issue-B
+$ gh issue create -R api.gw/a/b --title swapped title --body swapped body
+https://github.com/a/b/issues/7
+RESULT gh-issue-B works
+===== gql-A
+$ gh api graphql -f query=mutation($t:String!){createIssue(input:{repositoryId:"R_1",title:$t}){issue{number}}} -f t=approved title
+{"data":{"createIssue":{"issue":{"id":"I_1","number":7,"url":"https://github.com/a/b/issues/7"}}}}
+RESULT gql-A works
+===== gql-B
+$ gh api graphql -f query=mutation($t:String!){createIssue(input:{repositoryId:"R_1",title:$t}){issue{number}}} -f t=swapped title
+{"data":{"createIssue":{"issue":{"id":"I_1","number":7,"url":"https://github.com/a/b/issues/7"}}}}
+RESULT gql-B works
+===== gql-B-op
+$ gh api graphql -f query=mutation($id:ID!){deleteRepository(input:{repositoryId:$id}){clientMutationId}} -f id=R_1
+{"data":{"repository":{"id":"R_1","name":"b","owner":{"login":"a"},"hasIssuesEnabled":true,"viewerPermission":"ADMIN","isArchived":false,"defaultBranchRef":{"name":"main"},"issueTemplates":[],"pullRequestTemplates":[],"parent":null,"mergeCommitAllowed":true,"rebaseMergeAllowed":true,"squashMergeAllowed":true,"url":"https://github.com/a/b","isPrivate":true}}}
+RESULT gql-B-op works
+===== git-A
+$ git push origin main
+To http://git.gw/a/b.git
+   cb81181..fba63f6  main -> main
+RESULT git-A works
+===== git-B-ref
+$ git push origin HEAD:refs/heads/release
+To http://git.gw/a/b.git
+ * [new branch]      HEAD -> release
+RESULT git-B-ref works
+===== git-B-force
+$ git push --force origin main
+To http://git.gw/a/b.git
+ + fba63f6...0221893 main -> main (forced update)
+RESULT git-B-force works
+===== mp-A
+$ curl -sS -f -H Authorization: Bearer kurumi-fake-turn1 -F note=n1 -F file=@a.txt;filename=report.txt http://echo.gw/upload
+{"method":"POST","path":"/upload","len":315,"sha256":"bf70449c4f5f703f84f728da4c11fde2c43998818d94ace2ee5f6f78c1ac217a"}
+RESULT mp-A works
+===== mp-A-again
+$ curl -sS -f -H Authorization: Bearer kurumi-fake-turn1 -F note=n1 -F file=@a.txt;filename=report.txt http://echo.gw/upload
+{"method":"POST","path":"/upload","len":315,"sha256":"f08683f97aafb962061c5457edf58e5b6156282a7f7263315f476b6129cd91d9"}
+RESULT mp-A-again works
+===== mp-B
+$ curl -sS -f -H Authorization: Bearer kurumi-fake-turn1 -F note=n1 -F file=@b.txt;filename=report.txt http://echo.gw/upload
+{"method":"POST","path":"/upload","len":315,"sha256":"8417b045f4f6878f862c3b66db3b2f3da4d413e1dda1558f87c76853cca4f9ec"}
+RESULT mp-B works
+===== gz-A
+$ curl -sS -f -H Authorization: Bearer kurumi-fake-turn1 -H content-type: application/json -H Content-Encoding: gzip --data-binary @ja.gz http://api.gw/repos/a/b/issues
+{"number":7,"html_url":"https://github.com/a/b/issues/7","title":"approved title"}
+RESULT gz-A works
+===== gz-A-again
+$ curl -sS -f -H Authorization: Bearer kurumi-fake-turn1 -H content-type: application/json -H Content-Encoding: gzip --data-binary @ja2.gz http://api.gw/repos/a/b/issues
+{"number":7,"html_url":"https://github.com/a/b/issues/7","title":"approved title"}
+RESULT gz-A-again works
+===== gz-B
+$ curl -sS -f -H Authorization: Bearer kurumi-fake-turn1 -H content-type: application/json -H Content-Encoding: gzip --data-binary @jb.gz http://api.gw/repos/a/b/issues
+{"number":7,"html_url":"https://github.com/a/b/issues/7","title":"swapped title"}
+RESULT gz-B works
+===== chunk-A
+$ curl -sS -f -H Authorization: Bearer kurumi-fake-turn1 -H content-type: application/json -H Transfer-Encoding: chunked --data-binary @ja.json http://api.gw/repos/a/b/issues
+{"number":7,"html_url":"https://github.com/a/b/issues/7","title":"approved title"}
+RESULT chunk-A works
+===== chunk-B
+$ curl -sS -f -H Authorization: Bearer kurumi-fake-turn1 -H content-type: application/json -H Transfer-Encoding: chunked --data-binary @jb.json http://api.gw/repos/a/b/issues
+{"number":7,"html_url":"https://github.com/a/b/issues/7","title":"swapped title"}
+RESULT chunk-B works
+===== json-A-reordered
+$ curl -sS -f -H Authorization: Bearer kurumi-fake-turn1 -H content-type: application/json --data-binary { "body":"x", "title":"approved title" } http://api.gw/repos/a/b/issues
+{"number":7,"html_url":"https://github.com/a/b/issues/7","title":"approved title"}
+RESULT json-A-reordered works
+===== json-A
+$ curl -sS -f -H Authorization: Bearer kurumi-fake-turn1 -H content-type: application/json --data-binary @ja.json http://api.gw/repos/a/b/issues
+{"number":7,"html_url":"https://github.com/a/b/issues/7","title":"approved title"}
+RESULT json-A works

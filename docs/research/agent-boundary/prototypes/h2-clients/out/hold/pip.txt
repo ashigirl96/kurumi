@@ -1,0 +1,12 @@
+START 1795869474
+Looking in indexes: http://x:****@pypi.gw/simple
+WARNING: Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ReadTimeoutError("HTTPConnectionPool(host='pypi.gw', port=80): Read timed out. (read timeout=15)")': /simple/fake-pkg/
+WARNING: Retrying (Retry(total=3, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ReadTimeoutError("HTTPConnectionPool(host='pypi.gw', port=80): Read timed out. (read timeout=15)")': /simple/fake-pkg/
+WARNING: Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ReadTimeoutError("HTTPConnectionPool(host='pypi.gw', port=80): Read timed out. (read timeout=15)")': /simple/fake-pkg/
+WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ReadTimeoutError("HTTPConnectionPool(host='pypi.gw', port=80): Read timed out. (read timeout=15)")': /simple/fake-pkg/
+WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ReadTimeoutError("HTTPConnectionPool(host='pypi.gw', port=80): Read timed out. (read timeout=15)")': /simple/fake-pkg/
+ERROR: Could not find a version that satisfies the requirement fake-pkg (from versions: none)
+ERROR: No matching distribution found for fake-pkg
+
+END 1795869572 exit=1
+container_state_at_collection=exited
