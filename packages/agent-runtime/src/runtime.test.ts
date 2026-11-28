@@ -1,132 +1,28 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { Effect, Exit, Layer } from 'effect'
+import { Effect, Exit } from 'effect'
 import { SqlClient } from 'effect/sql'
 
+import { type ApprovalRequest, Runtime } from './runtime.ts'
 import {
-  type ApprovalRequest,
-  type InboundInput,
-  type OutboundToDeliver,
-  Runtime,
-  type RuntimeConfig,
-} from './runtime.ts'
-import { inboundMessages, outboundMessages, sessions, toolCalls, turns } from './schema.ts'
-import { AgentRuntimeDb } from './store.ts'
-import { testDbLayer } from './testing/db.ts'
-import type { Script } from './testing/fake-cli.ts'
-import { type FakeSandbox, fakeSandbox } from './testing/fake-sandbox.ts'
-
-const sandboxes: FakeSandbox[] = []
-
-afterEach(async () => {
-  for (const sandbox of sandboxes.splice(0)) {
-    for (const spawned of sandbox.spawns) await Effect.runPromise(sandbox.dispose(spawned.turn))
-  }
-})
-
-const say = (text: string): Script => ({ first: { steps: [{ kind: 'say', text }] } })
-
-const parked = (name = 'hold'): Script => ({
-  first: {
-    steps: [
-      { kind: 'park', name },
-      { kind: 'say', text: 'done' },
-    ],
-  },
-})
-
-type Harness = ReturnType<typeof harness>
-
-const harness = (
-  scriptFor: (n: number) => Script,
-  overrides: Partial<RuntimeConfig> & { deliver?: RuntimeConfig['channels'][string] } = {},
-) => {
-  const sandbox = fakeSandbox(scriptFor)
-  sandboxes.push(sandbox)
-  const delivered: OutboundToDeliver[] = []
-  const { deliver, ...rest } = overrides
-  const config: RuntimeConfig = {
-    dataDir: mkdtempSync(join(tmpdir(), 'kurumi-runtime-')),
-    agent: 'test-agent',
-    sandbox,
-    channels: {
-      chat:
-        deliver ??
-        ((m) =>
-          Effect.sync(() => {
-            delivered.push(m)
-          })),
-    },
-    onApprovalRequest: () => Effect.void,
-    ...rest,
-  }
-  return { sandbox, delivered, config }
-}
-
-const run = <A, E>(
-  h: Harness,
-  body: Effect.Effect<A, E, Runtime | AgentRuntimeDb | SqlClient.SqlClient>,
-) =>
-  Effect.runPromise(
-    body.pipe(Effect.provide(Runtime.layer(h.config).pipe(Layer.provideMerge(testDbLayer)))),
-  )
-
-let sequence = 0
-const inbound = (body: string, overrides: Partial<InboundInput> = {}): InboundInput => ({
-  channel: 'chat',
-  conversation: 'c1',
-  platformMessageId: `m${++sequence}`,
-  sender: 'user',
-  body,
-  receivedAt: new Date(),
-  ...overrides,
-})
-
-const eventually = (what: string, check: Effect.Effect<boolean, unknown, AgentRuntimeDb>) =>
-  Effect.gen(function* () {
-    for (let i = 0; i < 400; i++) {
-      if (yield* check) return
-      yield* Effect.sleep('10 millis')
-    }
-    yield* Effect.die(new Error(`timed out: ${what}`))
-  })
-
-const allTurns = Effect.gen(function* () {
-  const db = yield* AgentRuntimeDb
-  return yield* db.select().from(turns)
-})
-
-const allInbound = Effect.gen(function* () {
-  const db = yield* AgentRuntimeDb
-  return yield* db.select().from(inboundMessages)
-})
-
-const allSessions = Effect.gen(function* () {
-  const db = yield* AgentRuntimeDb
-  return yield* db.select().from(sessions)
-})
-
-const allOutbound = Effect.gen(function* () {
-  const db = yield* AgentRuntimeDb
-  return yield* db.select().from(outboundMessages)
-})
-
-const allToolCalls = Effect.gen(function* () {
-  const db = yield* AgentRuntimeDb
-  return yield* db.select().from(toolCalls)
-})
-
-const turnEnded = (state: 'interrupted' | 'completed') =>
-  Effect.map(allTurns, (rows) => rows.length === 1 && rows[0]?.state === state)
-
-const turnsEnded = (count: number) =>
-  Effect.map(
-    allTurns,
-    (rows) => rows.length === count && rows.every((t) => t.state === 'completed'),
-  )
+  type Harness,
+  allInbound,
+  allOutbound,
+  allSessions,
+  allToolCalls,
+  allTurns,
+  disposeSandboxes,
+  eventually,
+  harness,
+  inbound,
+  parked,
+  run,
+  say,
+  turnEnded,
+  turnsEnded,
+} from './testing/harness.ts'
 
 const write = (name: string, file: string, input: Record<string, unknown> = {}) =>
   ({ kind: 'tool', name, input, writes: { path: file, content: 'x' } }) as const
@@ -181,6 +77,8 @@ const toolResultErrors = Effect.map(allSessions, ([session]) =>
     )
     .filter((row) => JSON.stringify(row).includes('"is_error":true')),
 )
+
+afterEach(disposeSandboxes)
 
 describe('Runtime', () => {
   test('1 つの受信が 1 つのターンになり、最後の文が 1 回だけ届く', async () => {
