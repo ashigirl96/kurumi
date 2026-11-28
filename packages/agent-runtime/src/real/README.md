@@ -25,6 +25,22 @@ CLAUDE_REAL_TOKEN=<Claude Code の OAuth トークン> \
 - 途中で落とした後に残ったものは `docker rm -f $(docker ps -aq --filter label=kurumi.agent=real-checks) kurumi-dev-relay; docker network rm kurumi-dev-internal` で消せる。
 - ホストを強制終了するテストの後、`write /dev/stdout: broken pipe` という docker の行が出ることがある。ホストと一緒に死んだ docker の client が、読み手のいない pipe に書いた跡で、失敗ではない。
 
+## 手元で使ってみる
+
+ターミナルを 1 つのチャンネルに見立てて、本物の Docker と Claude Code CLI で `Runtime` に話しかける開発用の script。チャンネルの実装でも Credential Gateway でもない。
+
+```sh
+CLAUDE_REAL_TOKEN=<Claude Code の OAuth トークン> \
+  bun packages/agent-runtime/src/real/try.ts [--model haiku] [--ask Bash,Write]
+```
+
+- イメージがなければ、上の `docker build` を示して終わる。中継とネットワークは起動時に作り、終了時（Ctrl-C か入力の終わり）に片付ける。入力の終わりのときは、動いているターンが終わり、送信が届くのを待ってから閉じる。
+- 1 行が 1 つの受信になる。`/stop`（ターンを止める）と `/new`（`lost` になった会話を新しいセッションで始め直す）はそのまま `Runtime` に渡る。
+- `--ask` に並べたツールは承認依頼になり、ツール名と入力を表示する。`y` か `n` で答える。ほかのツールは許可する。
+- 状態は `KURUMI_TRY_DIR`（既定は `~/.kurumi/try`）の `try.db` と `data/` に残り、起こし直しても会話が続く。最初からやり直すには、このディレクトリを消す。
+- コンテナのラベルは `kurumi.agent=try`。
+- 隔離は Mac でしか確かめていない（#9）。
+
 ## 確かめていること
 
 | テスト | 確かめること | 偽の CLI との対応・型定義に載っていない依存 |
@@ -61,4 +77,5 @@ CLAUDE_REAL_TOKEN=<Claude Code の OAuth トークン> \
 | `support.ts` | 本物の Docker 用の `Runtime` の道具、CLI の出力を控える Sandbox の包み（`tappedSandbox`）、待つ関数 |
 | `kill-host.ts` | ホストを強制終了する筋書きで、別のプロセスとして起こすホスト |
 | `dev-env.ts`、`dev-relay.ts` | 開発用の中継と `--internal` ネットワーク。Credential Gateway の実装ではない |
+| `try.ts` | 手元で使ってみる script（上の「手元で使ってみる」） |
 | `isolation-check.ts` | 隔離の確認の script（`docs/linux-isolation-check.md`） |
