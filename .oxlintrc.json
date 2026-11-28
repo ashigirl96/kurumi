@@ -13,6 +13,10 @@
   },
   "rules": {
     // 指定しないと oxlint は import type だけでできた循環を見逃す。
-    "import/no-cycle": ["error", { "ignoreTypes": false }]
+    "import/no-cycle": ["error", { "ignoreTypes": false }],
+    // Effect の型付きエラーの `_tag` のように、外が決めた名前に当たる。
+    "eslint/no-underscore-dangle": "off",
+    // 番号の brand（TurnId など）は `as` で付ける。
+    "typescript/no-unsafe-type-assertion": "off"
   }
 }
