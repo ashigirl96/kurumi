@@ -16,7 +16,8 @@ export type ApprovalRequest = {
   readonly sessionId: string
   readonly turnId: TurnId
   readonly toolName: string
-  readonly inputSummary: string
+  /** 切らずに渡す。要約だけを見せると、見えない後ろの部分を承認させられる */
+  readonly input: unknown
   readonly expiresAt: Date
 }
 
@@ -82,7 +83,7 @@ export const makeGate = (deps: GateDeps, turn: GateTurn) => {
           sessionId: turn.sessionId,
           turnId: turn.turnId,
           toolName: call.toolName,
-          inputSummary: summarize(call.input),
+          input: call.input,
           expiresAt: new Date(Date.now() + Duration.toMillis(deps.approvalTimeout)),
         })
         return yield* Effect.raceFirst(Deferred.await(answer), expire)

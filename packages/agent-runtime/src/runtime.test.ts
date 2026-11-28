@@ -692,6 +692,30 @@ describe('Runtime', () => {
     })
 
     describe('ask', () => {
+      test('承認依頼は長い入力も切らずに渡す', async () => {
+        const { requests, onApprovalRequest } = asking()
+        const command = `${'echo ok; '.repeat(500)}rm -rf /work`
+        const h = harness(
+          () => ({
+            first: { steps: [write('Bash', 'ran.txt', { command }), holdStep, doneStep] },
+          }),
+          { policy: () => 'ask', onApprovalRequest },
+        )
+        await run(
+          h,
+          Effect.gen(function* () {
+            const runtime = yield* Runtime
+            yield* runtime.receive(inbound('長いコマンド'))
+            yield* requested(requests)
+            expect(requests[0]!.input).toEqual({ command })
+            yield* runtime.answerApproval(requests[0]!.id, 'deny')
+            yield* atHold(h)
+            h.sandbox.gate(0).release('hold')
+            yield* eventually('completed', turnsEnded(1))
+          }),
+        )
+      })
+
       test('依頼が届き、allow でツールが動く。待つ間ターンは閉じず、返事は受信にならない', async () => {
         const { requests, onApprovalRequest } = asking()
         const h = harness(askScript, { policy: () => 'ask', onApprovalRequest })
@@ -711,7 +735,7 @@ describe('Runtime', () => {
               turnId: turn!.id,
               toolName: 'Write',
             })
-            expect(JSON.parse(request!.inputSummary)).toEqual({ file_path: 'ask.txt' })
+            expect(request!.input).toEqual({ file_path: 'ask.txt' })
             expect(request!.expiresAt.getTime()).toBeGreaterThan(Date.now())
 
             yield* Effect.sleep('200 millis')
