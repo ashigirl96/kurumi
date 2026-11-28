@@ -181,4 +181,54 @@ describe('Runtime', () => {
     )
     expect(h.sandbox.spawns).toHaveLength(0)
   })
+  describe('同時実行', () => {
+    test('1 つのセッションで同時に動くターンは 1 つで、届いた順に回る', async () => {
+      const h = harness(() => parked())
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('1 つ目'))
+          yield* Effect.promise(() => h.sandbox.gate(0).reached('hold'))
+          yield* runtime.receive(inbound('2 つ目'))
+          yield* Effect.sleep('200 millis')
+          expect(h.sandbox.spawns).toHaveLength(1)
+          expect(h.sandbox.alive()).toBe(1)
+
+          h.sandbox.gate(0).release('hold')
+          yield* Effect.promise(() => h.sandbox.gate(1).reached('hold'))
+          expect(h.sandbox.spawns).toHaveLength(2)
+          h.sandbox.gate(1).release('hold')
+          yield* eventually('both completed', turnsEnded(2))
+        }),
+      )
+      expect(h.sandbox.alive()).toBe(0)
+    })
+
+    test('セッションをまたいだ同時実行は上限を超えない', async () => {
+      const h = harness(() => parked(), { maxConcurrentTurns: 2 })
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          for (const conversation of ['c1', 'c2', 'c3'])
+            yield* runtime.receive(inbound('並ぶ', { conversation }))
+          yield* Effect.promise(() => h.sandbox.gate(0).reached('hold'))
+          yield* Effect.promise(() => h.sandbox.gate(1).reached('hold'))
+          yield* Effect.sleep('200 millis')
+          expect(h.sandbox.spawns).toHaveLength(2)
+          expect(h.sandbox.alive()).toBe(2)
+
+          h.sandbox.gate(0).release('hold')
+          yield* Effect.promise(() => h.sandbox.gate(2).reached('hold'))
+          expect(h.sandbox.alive()).toBeLessThanOrEqual(2)
+          h.sandbox.gate(1).release('hold')
+          h.sandbox.gate(2).release('hold')
+          yield* eventually('all completed', turnsEnded(3))
+        }),
+      )
+      expect(h.sandbox.spawns).toHaveLength(3)
+      expect(h.sandbox.alive()).toBe(0)
+    })
+  })
 })
