@@ -51,6 +51,20 @@ const askScript = () => ({
   first: { steps: [write('Write', 'ask.txt', { file_path: 'ask.txt' }), holdStep, doneStep] },
 })
 
+const hanging = () => {
+  const ids: string[] = []
+  const notified = Promise.withResolvers<void>()
+  return {
+    ids,
+    notified,
+    onApprovalRequest: (r: ApprovalRequest) =>
+      Effect.promise(() => {
+        ids.push(r.id)
+        return notified.promise
+      }),
+  }
+}
+
 const send = (text: string, extra: { id?: string; dropMeta?: boolean } = {}) =>
   ({
     kind: 'tool',
@@ -801,6 +815,60 @@ describe('Runtime', () => {
           }),
         )
         expect(h.sandbox.alive()).toBe(0)
+      })
+
+      describe('依頼の通知が戻らないとき', () => {
+        test('/stop の後の答えは false で、通知が戻ってもツールは動かない', async () => {
+          const { ids, notified, onApprovalRequest } = hanging()
+          const h = harness(askScript, { policy: () => 'ask', onApprovalRequest })
+          try {
+            await run(
+              h,
+              Effect.gen(function* () {
+                const runtime = yield* Runtime
+                yield* runtime.receive(inbound('待たせる'))
+                yield* eventually(
+                  'approval requested',
+                  Effect.sync(() => ids.length === 1),
+                )
+                yield* runtime.receive(inbound('/stop'))
+                yield* eventually('interrupted', turnEnded('interrupted'))
+                expect(yield* runtime.answerApproval(ids[0]!, 'allow')).toBe(false)
+                notified.resolve()
+                yield* Effect.sleep('200 millis')
+                expect(yield* allToolCalls).toHaveLength(0)
+                expect(ran(yield* workspace)).toEqual([])
+              }),
+            )
+          } finally {
+            notified.resolve()
+          }
+        })
+
+        test('時間切れで deny になり、その後の答えは false', async () => {
+          const { ids, notified, onApprovalRequest } = hanging()
+          const h = harness(askScript, {
+            policy: () => 'ask',
+            onApprovalRequest,
+            approvalTimeout: '300 millis',
+          })
+          try {
+            await run(
+              h,
+              Effect.gen(function* () {
+                const runtime = yield* Runtime
+                yield* runtime.receive(inbound('放っておく'))
+                yield* atHold(h).pipe(Effect.timeout('2 seconds'))
+                expect(ran(yield* workspace)).toEqual([])
+                expect(yield* runtime.answerApproval(ids[0]!, 'allow')).toBe(false)
+                h.sandbox.gate(0).release('hold')
+                yield* eventually('completed', turnsEnded(1))
+              }),
+            )
+          } finally {
+            notified.resolve()
+          }
+        })
       })
     })
   })

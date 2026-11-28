@@ -70,19 +70,21 @@ export const makeGate = (deps: GateDeps, turn: GateTurn) => {
         Effect.andThen(Deferred.succeed(answer, 'deny')),
         Effect.andThen(Deferred.await(answer)),
       )
-      return yield* Effect.gen(function* () {
-        yield* deps.onApprovalRequest({
-          id,
-          channel: turn.channel,
-          conversation: turn.conversation,
-          sessionId: turn.sessionId,
-          turnId: turn.turnId,
-          toolName: call.toolName,
-          input: call.input,
-          expiresAt: new Date(Date.now() + Duration.toMillis(deps.approvalTimeout)),
-        })
-        return yield* Effect.raceFirst(Deferred.await(answer), expire)
-      }).pipe(
+      const notify = deps.onApprovalRequest({
+        id,
+        channel: turn.channel,
+        conversation: turn.conversation,
+        sessionId: turn.sessionId,
+        turnId: turn.turnId,
+        toolName: call.toolName,
+        input: call.input,
+        expiresAt: new Date(Date.now() + Duration.toMillis(deps.approvalTimeout)),
+      })
+      return yield* Effect.raceAllFirst([
+        Deferred.await(answer),
+        notify.pipe(Effect.andThen(Effect.never)),
+        expire,
+      ]).pipe(
         Effect.ensuring(
           Effect.suspend(() => {
             deps.approvals.delete(id)
