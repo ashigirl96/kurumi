@@ -1,14 +1,16 @@
 import { type SDKUserMessage, query } from '@anthropic-ai/claude-agent-sdk'
-import { Data, Effect, Option, Ref, Stream } from 'effect'
+import { Data, Deferred, type Duration, Effect, Option, Ref, Stream } from 'effect'
 import { z } from 'zod'
 
 import type { Sandbox, TurnSandbox } from './sandbox.ts'
 import type { TurnId } from './schema.ts'
 import {
   type AgentRuntimeDb,
+  type DbError,
   type InboundRow,
   type SessionRow,
   type StoreError,
+  assignInboundToRunningTurn,
   closeTurn,
   createTurn,
   insertOutbound,
@@ -29,6 +31,14 @@ export type TurnDeps = {
   readonly register?: (grant: TurnGrant) => Effect.Effect<void>
   readonly model?: string
   readonly notifyOutbound: Effect.Effect<void>
+  readonly turnTimeout: Duration.Input
+}
+
+/** Runtime がセッションごとに持ち、動いているターンへの止める合図と押し込みの入口になる */
+export type TurnControl = {
+  readonly stop: Deferred.Deferred<'stopped' | 'timeout'>
+  /** ターンが running になるまでは undefined */
+  accept: ((row: InboundRow) => Effect.Effect<boolean, DbError, AgentRuntimeDb>) | undefined
 }
 
 class SdkStreamFailed extends Data.TaggedError('SdkStreamFailed')<{ readonly cause: unknown }> {}
@@ -141,19 +151,45 @@ export const forbiddenTools = [
 ]
 
 const userInput = (first: SDKUserMessage) => {
-  const ended = Promise.withResolvers<void>()
+  const queue = [first]
+  let done = false
+  let wake: (() => void) | undefined
   async function* iterable() {
-    yield first
-    await ended.promise
+    for (;;) {
+      const next = queue.shift()
+      if (next) yield next
+      else if (done) return
+      else await new Promise<void>((resolve) => (wake = resolve))
+    }
   }
-  return { iterable: iterable(), end: ended.resolve }
+  const poke = () => wake?.()
+  return {
+    iterable: iterable(),
+    push: (message: SDKUserMessage) => {
+      queue.push(message)
+      poke()
+    },
+    end: () => {
+      done = true
+      poke()
+    },
+  }
 }
+
+// 型定義の interrupt() は引数を取らないが、SDK は実行時に cancelQueued を読んで CLI へ cancel_queued を送る。
+type CancelQueuedInterrupt = { interrupt(options: { cancelQueued: boolean }): Promise<unknown> }
+
+const interruptAndCancelQueued = (q: CancelQueuedInterrupt) =>
+  Effect.tryPromise(() => q.interrupt({ cancelQueued: true })).pipe(
+    Effect.timeout('5 seconds'),
+    Effect.ignore,
+  )
 
 const closing = (turnId: TurnId, end: TurnEnd) => {
   switch (end._tag) {
     case 'Completed':
       return {
-        from: 'closing',
+        from: ['closing'],
         to: 'completed',
         endReason: null,
         inboundOutcome: 'answered',
@@ -161,7 +197,7 @@ const closing = (turnId: TurnId, end: TurnEnd) => {
       } as const
     case 'Failed':
       return {
-        from: 'running',
+        from: ['running'],
         to: 'failed',
         endReason: end.terminalReason,
         inboundOutcome: 'failed',
@@ -169,7 +205,7 @@ const closing = (turnId: TurnId, end: TurnEnd) => {
       } as const
     default:
       return {
-        from: 'running',
+        from: ['running', 'closing'],
         to: 'interrupted',
         endReason: end.reason,
         inboundOutcome: 'interrupted',
@@ -182,6 +218,7 @@ export const runTurn = (
   deps: TurnDeps,
   session: SessionRow,
   inbound: readonly [InboundRow, ...InboundRow[]],
+  control: TurnControl,
 ): Effect.Effect<void, StoreError, AgentRuntimeDb> =>
   Effect.gen(function* () {
     const turnId = yield* createTurn({
@@ -198,6 +235,45 @@ export const runTurn = (
       token: `kurumi-fake-${crypto.randomUUID()}`,
     }
     const progress = yield* Ref.make(initialProgress)
+    const input = userInput({
+      type: 'user',
+      message: { role: 'user', content: inbound.map((m) => m.body).join('\n\n') },
+      parent_tool_use_id: null,
+      uuid: promptUuid,
+    })
+
+    control.accept = (row) =>
+      Effect.gen(function* () {
+        if (yield* Deferred.isDone(control.stop)) return false
+        const uuid = crypto.randomUUID()
+        const taken = yield* Ref.modify(progress, (p) =>
+          p.phase === 'running'
+            ? ([true, advance(p, { type: 'accepted', uuid })] as const)
+            : ([false, p] as const),
+        )
+        if (!taken) return false
+        // 取り下げても closing を評価し直さない。割り当てに失敗するのは /stop の最中か DB の障害で、前者はターンが止まる経路で終わり、後者は制限時間で終わる。
+        const withdraw = Ref.update(progress, (p) => {
+          const pushed = new Map(p.pushed)
+          pushed.delete(uuid)
+          return { ...p, pushed }
+        })
+        const assigned = yield* assignInboundToRunningTurn(row.id, turnId).pipe(
+          Effect.onError(() => withdraw),
+        )
+        if (!assigned) {
+          yield* withdraw
+          return false
+        }
+        input.push({
+          type: 'user',
+          message: { role: 'user', content: row.body },
+          parent_tool_use_id: null,
+          uuid,
+          priority: 'next',
+        })
+        return true
+      })
 
     const handle = (
       output: unknown,
@@ -253,12 +329,6 @@ export const runTurn = (
             turnId,
           }) ?? Effect.void
         )
-        const input = userInput({
-          type: 'user',
-          message: { role: 'user', content: inbound.map((m) => m.body).join('\n\n') },
-          parent_tool_use_id: null,
-          uuid: promptUuid,
-        })
         const q = yield* Effect.acquireRelease(
           Effect.sync(() =>
             query({
@@ -285,10 +355,11 @@ export const runTurn = (
               Effect.catchCause((cause) => Effect.logError('sandbox dispose failed', cause)),
             ),
         )
-        const ended = yield* Stream.fromAsyncIterable(
-          q,
-          (cause) => new SdkStreamFailed({ cause }),
-        ).pipe(
+        yield* Effect.sleep(deps.turnTimeout).pipe(
+          Effect.andThen(Deferred.succeed(control.stop, 'timeout')),
+          Effect.forkScoped,
+        )
+        const read = Stream.fromAsyncIterable(q, (cause) => new SdkStreamFailed({ cause })).pipe(
           Stream.mapEffect(handle),
           Stream.filter((result): result is TurnEnd => result !== undefined),
           Stream.runHead,
@@ -297,11 +368,26 @@ export const runTurn = (
               Effect.as(Option.none<TurnEnd>()),
             ),
           ),
+          Effect.map((ended) =>
+            Option.getOrElse(ended, (): TurnEnd => ({
+              _tag: 'Interrupted',
+              reason: 'sandbox_exit',
+            })),
+          ),
         )
-        return Option.getOrElse(ended, (): TurnEnd => ({
-          _tag: 'Interrupted',
-          reason: 'sandbox_exit',
-        }))
+        const hostStop = Deferred.await(control.stop).pipe(
+          Effect.tap(() => interruptAndCancelQueued(q)),
+          Effect.map((reason): TurnEnd => ({ _tag: 'Interrupted', reason })),
+        )
+        const raced = yield* Effect.raceFirst(read, hostStop)
+        // 止め始めた後に CLI が result を返したり落ちたりしても、止めた理由のほうを残す。
+        const stopped = (yield* Deferred.isDone(control.stop))
+          ? yield* Deferred.await(control.stop)
+          : undefined
+        yield* Ref.update(progress, (p) => ({ ...p, phase: 'closing' as const }))
+        return raced._tag !== 'Completed' && stopped !== undefined
+          ? ({ _tag: 'Interrupted', reason: stopped } satisfies TurnEnd)
+          : raced
       }),
     )
 

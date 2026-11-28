@@ -1,7 +1,7 @@
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { Context, type Duration, Effect, Layer, Semaphore } from 'effect'
+import { Context, Deferred, type Duration, Effect, Layer, Semaphore } from 'effect'
 
 import { type Deliver, type OutboundToDeliver, makeOutbox } from './outbound.ts'
 import type { Sandbox } from './sandbox.ts'
@@ -13,10 +13,11 @@ import {
   findSession,
   getSession,
   insertSession,
+  interruptUnassignedInbound,
   listUnassignedInbound,
-  saveInbound,
+  storeInbound,
 } from './store.ts'
-import { type TurnGrant, runTurn } from './turn.ts'
+import { type TurnControl, type TurnGrant, runTurn } from './turn.ts'
 
 export type { Deliver, OutboundToDeliver, TurnGrant }
 
@@ -74,6 +75,7 @@ export type RuntimeApi = {
 }
 
 const deliveryRetryDelay = '1 second'
+const defaultTurnTimeout: Duration.Input = '30 minutes'
 
 const makeRuntime = (config: RuntimeConfig) =>
   Effect.gen(function* () {
@@ -97,7 +99,10 @@ const makeRuntime = (config: RuntimeConfig) =>
       register: config.credentialGateway?.register,
       model: config.model,
       notifyOutbound: outbox.notify,
+      turnTimeout: config.turnTimeout ?? defaultTurnTimeout,
     }
+
+    const activeTurns = new Map<string, TurnControl>()
 
     const processSession = (sessionId: string) =>
       lockOf(sessionId).withPermit(
@@ -105,11 +110,19 @@ const makeRuntime = (config: RuntimeConfig) =>
           Effect.gen(function* () {
             const session = yield* getSession(sessionId)
             if (session?.status !== 'active') return
-            const [first, ...rest] = yield* listUnassignedInbound(
-              session.channel,
-              session.conversation,
-            )
-            if (first) yield* runTurn(turnDeps, session, [first, ...rest])
+            // 未割り当ての受信を読む前に置く。/stop がその後に届けば、止める合図はこのターンに届く。
+            const control: TurnControl = {
+              stop: yield* Deferred.make<'stopped' | 'timeout'>(),
+              accept: undefined,
+            }
+            activeTurns.set(sessionId, control)
+            yield* Effect.gen(function* () {
+              const [first, ...rest] = yield* listUnassignedInbound(
+                session.channel,
+                session.conversation,
+              )
+              if (first) yield* runTurn(turnDeps, session, [first, ...rest], control)
+            }).pipe(Effect.ensuring(Effect.sync(() => activeTurns.delete(sessionId))))
           }),
         ),
       )
@@ -147,12 +160,30 @@ const makeRuntime = (config: RuntimeConfig) =>
         return found
       })
 
+    const stop = (message: InboundInput) =>
+      Effect.gen(function* () {
+        const session = yield* findSession(message.channel, message.conversation)
+        if (session) {
+          const control = activeTurns.get(session.id)
+          if (control) yield* Deferred.succeed(control.stop, 'stopped')
+          yield* interruptUnassignedInbound(message.channel, message.conversation)
+        }
+        return 'stop' as const
+      })
+
     const receive = (message: InboundInput) =>
       Effect.gen(function* () {
+        if (message.body.trim() === '/stop') return yield* stop(message)
         // 先に session を作る。受信を書いたあとで失敗すると、再送の受信が重複になって起こされない。
         const session = yield* ensureSession(message.channel, message.conversation)
-        const stored = yield* saveInbound(message)
-        yield* kick(session.id)
+        const stored = yield* storeInbound(message)
+        // 押し込めなかった受信は未割り当てのまま、次のターンが拾う。
+        const pushed = stored
+          ? yield* (activeTurns.get(session.id)?.accept?.(stored) ?? Effect.succeed(false)).pipe(
+              Effect.catchCause((cause) => Effect.as(Effect.logError('push failed', cause), false)),
+            )
+          : false
+        if (!pushed) yield* kick(session.id)
         return stored ? ('stored' as const) : ('duplicate' as const)
       }).pipe(Effect.provideService(AgentRuntimeDb, db))
 

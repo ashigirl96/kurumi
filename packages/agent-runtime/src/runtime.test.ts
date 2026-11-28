@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -113,6 +113,9 @@ const allOutbound = Effect.gen(function* () {
   return yield* db.select().from(outboundMessages)
 })
 
+const turnEnded = (state: 'interrupted' | 'completed') =>
+  Effect.map(allTurns, (rows) => rows.length === 1 && rows[0]?.state === state)
+
 const turnsEnded = (count: number) =>
   Effect.map(
     allTurns,
@@ -187,24 +190,22 @@ describe('Runtime', () => {
     expect(h.sandbox.spawns).toHaveLength(0)
   })
   describe('同時実行', () => {
-    test('1 つのセッションで同時に動くターンは 1 つで、届いた順に回る', async () => {
-      const h = harness(() => parked())
+    test('1 つのセッションで同時に動くターンは 1 つで、閉じ始めたターンの後に届いた受信は次のターンで回る', async () => {
+      const h = harness(() => say('答え'))
+      const hold = h.sandbox.holdDispose()
       await run(
         h,
         Effect.gen(function* () {
           const runtime = yield* Runtime
           yield* runtime.receive(inbound('1 つ目'))
-          yield* Effect.promise(() => h.sandbox.gate(0).reached('hold'))
+          yield* Effect.promise(() => hold.entered)
           yield* runtime.receive(inbound('2 つ目'))
           yield* Effect.sleep('200 millis')
           expect(h.sandbox.spawns).toHaveLength(1)
-          expect(h.sandbox.alive()).toBe(1)
 
-          h.sandbox.gate(0).release('hold')
-          yield* Effect.promise(() => h.sandbox.gate(1).reached('hold'))
-          expect(h.sandbox.spawns).toHaveLength(2)
-          h.sandbox.gate(1).release('hold')
+          hold.release()
           yield* eventually('both completed', turnsEnded(2))
+          expect(h.sandbox.spawns).toHaveLength(2)
         }),
       )
       expect(h.sandbox.alive()).toBe(0)
@@ -337,9 +338,12 @@ describe('Runtime', () => {
             'notice delivered',
             Effect.map(allOutbound, (rows) => rows.length === 1 && rows[0]?.state === 'delivered'),
           )
+          yield* Effect.sleep('200 millis')
+          expect(yield* allTurns).toHaveLength(1)
         }),
       )
       expect(h.delivered.map((m) => m.kind)).toEqual(['notice'])
+      expect(h.sandbox.spawns).toHaveLength(1)
     })
 
     test('CLI が途中で落ちたら interrupted で、やり直さない', async () => {
@@ -360,6 +364,176 @@ describe('Runtime', () => {
         }),
       )
       expect(h.sandbox.spawns).toHaveLength(1)
+    })
+  })
+
+  describe('実行中の受信と /stop', () => {
+    test('最後のツールの直後に届いた受信は同じターンで押し込まれ、2 つ目の result までターンは閉じない', async () => {
+      const h = harness(() => ({
+        first: {
+          steps: [
+            { kind: 'tool', name: 'Bash' },
+            { kind: 'park', name: 'hold' },
+            { kind: 'say', text: '一つ目の答え' },
+          ],
+        },
+        next: { steps: [{ kind: 'say', text: '二つ目の答え' }] },
+      }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('最初'))
+          yield* Effect.promise(() => h.sandbox.gate(0).reached('hold'))
+          expect(yield* runtime.receive(inbound('途中で追加'))).toBe('stored')
+          h.sandbox.gate(0).release('hold')
+          yield* eventually('turn completed', turnsEnded(1))
+          yield* eventually(
+            'both delivered',
+            Effect.map(
+              allOutbound,
+              (rows) => rows.length === 2 && rows.every((r) => r.state === 'delivered'),
+            ),
+          )
+          const [turn] = yield* allTurns
+          const rows = yield* allInbound
+          expect(rows.map((m) => m.outcome)).toEqual(['answered', 'answered'])
+          expect(rows.map((m) => m.turnId)).toEqual([turn!.id, turn!.id])
+        }),
+      )
+      expect(h.delivered.map((m) => [m.kind, m.body])).toEqual([
+        ['final', '一つ目の答え'],
+        ['final', '二つ目の答え'],
+      ])
+      expect(h.sandbox.spawns).toHaveLength(1)
+      expect(h.sandbox.received(0)).toContainEqual(
+        expect.objectContaining({
+          priority: 'next',
+          message: expect.objectContaining({ content: '途中で追加' }),
+        }),
+      )
+      expect(h.sandbox.alive()).toBe(0)
+    })
+
+    test('closing に入った後に届いた受信は押し込まれず、次のターンで答えられる', async () => {
+      const h = harness(() => say('答え'))
+      const hold = h.sandbox.holdDispose()
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('最初'))
+          yield* Effect.promise(() => hold.entered)
+          yield* runtime.receive(inbound('窓の間に届いた'))
+          expect((yield* allInbound).map((m) => m.turnId)).toEqual([expect.any(Number), null])
+          hold.release()
+          yield* eventually('two turns completed', turnsEnded(2))
+          const rows = yield* allInbound
+          expect(rows.map((m) => m.outcome)).toEqual(['answered', 'answered'])
+          expect(rows[0]?.turnId).not.toBe(rows[1]?.turnId)
+        }),
+      )
+      expect(h.sandbox.spawns.map((s) => s.resume)).toEqual([false, true])
+    })
+
+    test('/stop は押し込みを cancelled にして実行させず、ターンも受信も interrupted になる', async () => {
+      const h = harness(() => ({
+        first: {
+          steps: [
+            { kind: 'tool', name: 'Write', writes: { path: 'started.txt', content: '' } },
+            { kind: 'hang' },
+          ],
+        },
+        next: {
+          steps: [{ kind: 'tool', name: 'Write', writes: { path: 'pushed.txt', content: 'x' } }],
+        },
+      }))
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('長い作業'))
+          const [session] = yield* allSessions
+          yield* eventually(
+            'tool started',
+            Effect.sync(() => existsSync(join(session!.workspaceDir, 'started.txt'))),
+          )
+          yield* runtime.receive(inbound('追加の指示'))
+          expect((yield* allInbound).map((m) => m.turnId)).toEqual([
+            expect.any(Number),
+            expect.any(Number),
+          ])
+          expect(yield* runtime.receive(inbound(' /stop\n'))).toBe('stop')
+          yield* eventually('interrupted', turnEnded('interrupted'))
+          expect((yield* allTurns)[0]?.endReason).toBe('stopped')
+          expect((yield* allInbound).map((m) => m.outcome)).toEqual(['interrupted', 'interrupted'])
+          expect(yield* allInbound).toHaveLength(2)
+          yield* eventually(
+            'notice delivered',
+            Effect.map(allOutbound, (rows) => rows.length === 1 && rows[0]?.state === 'delivered'),
+          )
+          yield* Effect.sleep('300 millis')
+          expect(existsSync(join(session!.workspaceDir, 'pushed.txt'))).toBe(false)
+          expect(h.sandbox.received(0)).toContainEqual(
+            expect.objectContaining({
+              request: expect.objectContaining({ subtype: 'interrupt', cancel_queued: true }),
+            }),
+          )
+        }),
+      )
+      expect(h.delivered.map((m) => m.kind)).toEqual(['notice'])
+      expect(h.sandbox.spawns).toHaveLength(1)
+      expect(h.sandbox.alive()).toBe(0)
+    })
+
+    test('/stop の前から待っていた受信は動かず、/stop の後の受信は新しいコンテナで resume して答えられる', async () => {
+      const h = harness(() => say('答え'))
+      const hold = h.sandbox.holdDispose()
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('最初'))
+          yield* Effect.promise(() => hold.entered)
+          yield* runtime.receive(inbound('次のターンを待つ古い指示'))
+          expect(yield* runtime.receive(inbound('/stop'))).toBe('stop')
+          yield* runtime.receive(inbound('/stop のあとの指示'))
+          hold.release()
+          yield* eventually('two turns completed', turnsEnded(2))
+          yield* Effect.sleep('200 millis')
+          const rows = yield* allInbound
+          expect(rows.map((m) => [m.body, m.outcome])).toEqual([
+            ['最初', 'answered'],
+            ['次のターンを待つ古い指示', 'interrupted'],
+            ['/stop のあとの指示', 'answered'],
+          ])
+          expect(rows[1]?.turnId).toBeNull()
+          expect(yield* allTurns).toHaveLength(2)
+        }),
+      )
+      expect(h.sandbox.spawns.map((s) => s.resume)).toEqual([false, true])
+      expect(h.sandbox.alive()).toBe(0)
+    })
+
+    test('制限時間を超えたターンは /stop と同じ結果で、end_reason は timeout', async () => {
+      const h = harness(() => parked('forever'), { turnTimeout: '300 millis' })
+      await run(
+        h,
+        Effect.gen(function* () {
+          const runtime = yield* Runtime
+          yield* runtime.receive(inbound('終わらない'))
+          yield* eventually('interrupted', turnEnded('interrupted'))
+          expect((yield* allTurns)[0]?.endReason).toBe('timeout')
+          expect((yield* allInbound).map((m) => m.outcome)).toEqual(['interrupted'])
+          yield* eventually(
+            'notice delivered',
+            Effect.map(allOutbound, (rows) => rows.length === 1 && rows[0]?.state === 'delivered'),
+          )
+        }),
+      )
+      expect(h.delivered.map((m) => m.kind)).toEqual(['notice'])
+      expect(h.sandbox.spawns).toHaveLength(1)
+      expect(h.sandbox.alive()).toBe(0)
     })
   })
 })

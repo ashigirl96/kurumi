@@ -1,4 +1,4 @@
-import { and, asc, defineRelations, eq, inArray, isNull } from 'drizzle-orm'
+import { and, asc, defineRelations, eq, exists, inArray, isNull } from 'drizzle-orm'
 import * as Drizzle from 'drizzle-orm/effect-sqlite-bun'
 import { Context, Data, Effect, Layer } from 'effect'
 
@@ -47,15 +47,59 @@ export type NewToolCall = Pick<
   'toolUseId' | 'turnId' | 'toolName' | 'inputSummary'
 >
 
-export const saveInbound = (message: NewInboundMessage) =>
+/** 新しく書けたときだけ、その行を返す */
+export const storeInbound = (message: NewInboundMessage) =>
   Effect.gen(function* () {
     const db = yield* AgentRuntimeDb
     const stored = yield* db
       .insert(inboundMessages)
       .values(message)
       .onConflictDoNothing()
+      .returning()
+    return stored[0]
+  })
+
+export const saveInbound = (message: NewInboundMessage) =>
+  Effect.map(storeInbound(message), (row) => row !== undefined)
+
+/** 動いている（running の）ターンにだけ、まだ誰にも割り当てられていない受信を割り当てる。ターンが閉じ始めた後の割り当てで受信が宙に浮かないようにする。 */
+export const assignInboundToRunningTurn = (inboundId: InboundMessageId, turnId: TurnId) =>
+  Effect.gen(function* () {
+    const db = yield* AgentRuntimeDb
+    const assigned = yield* db
+      .update(inboundMessages)
+      .set({ turnId })
+      .where(
+        and(
+          eq(inboundMessages.id, inboundId),
+          isNull(inboundMessages.turnId),
+          isNull(inboundMessages.outcome),
+          exists(
+            db
+              .select({ id: turns.id })
+              .from(turns)
+              .where(and(eq(turns.id, turnId), eq(turns.state, 'running'))),
+          ),
+        ),
+      )
       .returning({ id: inboundMessages.id })
-    return stored.length > 0
+    return assigned.length === 1
+  })
+
+export const interruptUnassignedInbound = (channel: string, conversation: string) =>
+  Effect.gen(function* () {
+    const db = yield* AgentRuntimeDb
+    yield* db
+      .update(inboundMessages)
+      .set({ outcome: 'interrupted' })
+      .where(
+        and(
+          eq(inboundMessages.channel, channel),
+          eq(inboundMessages.conversation, conversation),
+          isNull(inboundMessages.turnId),
+          isNull(inboundMessages.outcome),
+        ),
+      )
   })
 
 export const createTurn = (input: {
@@ -199,7 +243,7 @@ export const insertOutbound = (message: NewOutbound) =>
 export type TurnClosing = {
   readonly turnId: TurnId
   readonly sessionId: string
-  readonly from: 'running' | 'closing'
+  readonly from: readonly ('running' | 'closing')[]
   readonly to: 'completed' | 'failed' | 'interrupted'
   readonly endReason: string | null
   readonly lastAssistantUuid: string | null
@@ -209,7 +253,12 @@ export type TurnClosing = {
 
 export const closeTurn = (closing: TurnClosing) =>
   Effect.gen(function* () {
-    if (!(turnTransitions[closing.from] as readonly TurnState[]).includes(closing.to)) return false
+    if (
+      !closing.from.every((from) =>
+        (turnTransitions[from] as readonly TurnState[]).includes(closing.to),
+      )
+    )
+      return false
     const db = yield* AgentRuntimeDb
     return yield* db.transaction((tx) =>
       Effect.gen(function* () {
@@ -222,7 +271,7 @@ export const closeTurn = (closing: TurnClosing) =>
             endReason: closing.endReason,
             lastAssistantUuid: closing.lastAssistantUuid,
           })
-          .where(and(eq(turns.id, closing.turnId), eq(turns.state, closing.from)))
+          .where(and(eq(turns.id, closing.turnId), inArray(turns.state, [...closing.from])))
           .returning({ id: turns.id })
         if (moved.length === 0) return false
         yield* tx
